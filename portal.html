@@ -197,16 +197,6 @@
           <label>Team Member</label>
           <select id="pay-member">
             <option value="">Select member</option>
-            <option>IB</option>
-            <option>KW</option>
-            <option>ZuZu</option>
-            <option>Max</option>
-            <option>Emmanuel B. (Fiso)</option>
-            <option>Nana G Boateng</option>
-            <option>Holis Sarkodieh</option>
-            <option>Ernest Obobisa</option>
-            <option>Gyimah N K</option>
-            <option>Other</option>
           </select>
         </div>
         <div class="form-group">
@@ -381,6 +371,7 @@ const CLIENT_ID      = '304894248307-ohshubs8o36kksgqlbbr8q0doe1b695k.apps.googl
 const SHEET_JOBS     = 'MASTER_JOBS_2026';
 const SHEET_EXP      = 'EXPENSES_2026';
 const SHEET_PAY      = 'TEAM_PAYROLL_2026';
+const SHEET_TEAM     = 'TEAM';
 
 let gToken = null, gTokenExpiry = 0, gTokenClient = null;
 let allJobs = [], projectExpenses = [], projectPayroll = [];
@@ -414,6 +405,7 @@ function onToken(resp) {
   document.getElementById('sync-dot').classList.add('connected');
   document.getElementById('sync-label').textContent = 'Connected';
   document.getElementById('state-connect').classList.add('hidden');
+  loadTeamMembers();
   loadJobs();
 }
 
@@ -429,6 +421,29 @@ async function gAppend(sheet, values) {
   const r = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: JSON.stringify({ values }) });
   if (!r.ok) throw new Error('Append failed: ' + r.status);
   return r.json();
+}
+
+// ── LOAD TEAM MEMBERS ────────────────────────────────────────────────────────
+async function loadTeamMembers() {
+  try {
+    const data = await gGet(SHEET_TEAM + '!A:E');
+    const rows = (data.values || []).slice(1); // skip header
+    const members = rows
+      .filter(r => (r[2]||'').trim().toLowerCase() === 'active' && (r[0]||'').trim())
+      .map(r => r[0].trim());
+
+    const sel = document.getElementById('pay-member');
+    // Clear existing options except the placeholder
+    sel.innerHTML = '<option value="">Select member</option>';
+    members.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  } catch(e) {
+    console.warn('Could not load team members:', e.message);
+  }
 }
 
 // ── LOAD JOBS ─────────────────────────────────────────────────────────────────
