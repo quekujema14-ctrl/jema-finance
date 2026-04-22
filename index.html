@@ -1172,6 +1172,37 @@ function rowsToObjs(type, rawRows) {
     });
 }
 
+// ─── Sync LISTS tab → dropdown arrays ────────────────────────────────────────
+async function syncListsFromSheet() {
+  try {
+    const data = await gGet('LISTS!A1:Z100');
+    const rows = data.values || [];
+    if (rows.length < 2) return;
+    const headers = rows[0];
+    const colMap = {};
+    headers.forEach((h, i) => { colMap[h] = i; });
+
+    const col = key => {
+      const ci = colMap[key];
+      if (ci === undefined) return [];
+      return rows.slice(1).map(r => (r[ci]||'').trim()).filter(v => v);
+    };
+
+    // Update LISTS in-place so populateSelects() picks them up
+    const packages = col('PACKAGES');        if (packages.length)       LISTS.packages       = packages;
+    const roles    = col('ROLES');           if (roles.length)          LISTS.roles          = roles;
+    const methods  = col('PAYMENT_METHODS'); if (methods.length)        LISTS.paymentMethods = methods;
+    const cats     = col('CATEGORIES');      if (cats.length)           LISTS.categories     = cats;
+    const receipt  = col('RECEIPT_STATUS');  if (receipt.length)        LISTS.receiptStatus  = receipt;
+    const stages   = col('PROJECT_STAGES');  if (stages.length)         LISTS.stages         = stages;
+    const accounts = col('PAID_ACCOUNT_TAGS'); if (accounts.filter(Boolean).length) LISTS.accounts = accounts.filter(Boolean);
+
+    populateSelects(); // refresh all dropdowns with updated values
+  } catch(e) {
+    console.warn('[LISTS sync]', e.message);
+  }
+}
+
 // ─── PULL from Sheets → App ───────────────────────────────────────────────
 async function pullFromSheets() {
   if (!gToken || gTokenExpiry <= Date.now() || syncBusy) return;
@@ -1199,6 +1230,7 @@ async function pullFromSheets() {
     nextPayId   = Math.max(0, ...payroll.map(p=>p.id||0)) + 1;
     nextTeamId  = Math.max(0, ...team.map(t=>t.id||0)) + 1;
 
+    await syncListsFromSheet(); // update dropdowns from LISTS sheet first
     populateSelects();
     filterJobs();    renderJobStats();
     filterExpenses(); renderExpStats();
