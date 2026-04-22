@@ -294,8 +294,8 @@
         <div class="form-group">
           <label>Receipt</label>
           <select id="proj-receipt">
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
+            <option value="Uploaded">Uploaded</option>
+            <option value="">Not Uploaded</option>
           </select>
         </div>
         <div class="form-group span-2">
@@ -350,8 +350,8 @@
         <div class="form-group">
           <label>Receipt</label>
           <select id="gen-receipt">
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
+            <option value="Uploaded">Uploaded</option>
+            <option value="">Not Uploaded</option>
           </select>
         </div>
         <div class="form-group span-2">
@@ -438,13 +438,14 @@ async function loadJobs() {
     const data = await gGet(SHEET_JOBS + '!A:O');
     const rows = (data.values || []).slice(1); // skip header
     // Only show active jobs (Awaiting Event)
+    const parseNum = v => parseFloat(String(v||'').replace(/,/g,'')) || 0;
     allJobs = rows
       .filter(r => (r[12]||'').trim() === 'Awaiting Event')
       .map(r => ({
         invoice: r[0]||'', client: r[1]||'', day: r[2]||'', month: r[3]||'',
         year: r[4]||'', location: r[5]||'', pkg: r[6]||'',
-        total: parseFloat(r[7])||0,
-        budget_cap: parseFloat(r[14])||35,
+        total: parseNum(r[7]),
+        budget_cap: parseNum(r[14]),
         stage: r[12]||''
       }));
 
