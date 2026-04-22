@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEMA Studios – Production Portal</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C96A; --gold-dark: #A07C2D;
+    --navy: #1A2744; --bg: #e4e5e9; --bg-card: #e8e9ee; --bg-input: #f0f1f5;
+    --text: #1A2744; --text-muted: #6b7a8d; --white: #fff;
+    --success: #27AE60; --danger: #E74C3C; --warning: #F39C12; --info: #3498DB;
+    --border: rgba(26,39,68,0.08);
+    --shadow-neu: 8px 8px 20px #c8cace, -8px -8px 20px #ffffff;
+    --shadow-neu-sm: 4px 4px 12px #c8cace, -4px -4px 12px #ffffff;
+    --shadow-neu-inset: inset 4px 4px 10px #c8cace, inset -4px -4px 10px #ffffff;
+    --radius: 16px; --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .app-header { background: var(--bg); box-shadow: var(--shadow-neu); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo img { width: 38px; height: 38px; object-fit: contain; border-radius: 8px; box-shadow: 3px 3px 8px rgba(201,168,76,0.3); }
+  .logo-text { font-size: 17px; font-weight: 800; color: var(--navy); }
+  .logo-text span { color: var(--gold); }
+  .logo-badge { font-size: 10px; font-weight: 700; background: var(--gold); color: #fff; padding: 2px 8px; border-radius: 20px; margin-left: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #aab2bd; }
+  .sync-dot.connected { background: var(--success); box-shadow: 0 0 6px rgba(39,174,96,0.5); }
+  .sync-label { font-size: 11px; color: var(--text-muted); }
+
+  /* MAIN */
+  .main { padding: 24px; max-width: 700px; margin: 0 auto; }
+
+  /* CARDS */
+  .card { background: var(--bg-card); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-neu); margin-bottom: 20px; }
+  .card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--navy); margin-bottom: 16px; }
+
+  /* CONNECT STATE */
+  .connect-state { text-align: center; padding: 60px 24px; }
+  .connect-icon { font-size: 48px; margin-bottom: 16px; }
+  .connect-title { font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 8px; }
+  .connect-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; line-height: 1.6; }
+  .btn-connect { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #fff; border: none; border-radius: var(--radius-sm); padding: 14px 32px; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 4px 4px 12px rgba(201,168,76,0.4); transition: all 0.2s; }
+  .btn-connect:hover { box-shadow: 6px 6px 16px rgba(201,168,76,0.5); transform: translateY(-1px); }
+  .btn-connect:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  /* PROJECT SELECTOR */
+  .project-select-wrap { position: relative; }
+  .project-select-wrap select { width: 100%; padding: 14px 16px; font-size: 15px; font-weight: 600; color: var(--navy); background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-neu-inset); appearance: none; cursor: pointer; }
+  .project-select-wrap select:focus { outline: none; border-color: var(--gold); }
+  .project-select-arrow { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--gold); font-size: 16px; }
+
+  /* BUDGET CARD */
+  .budget-overview { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .budget-stat { background: var(--bg-input); border-radius: var(--radius-sm); padding: 14px; text-align: center; box-shadow: var(--shadow-neu-inset); }
+  .budget-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+  .budget-stat-value { font-size: 18px; font-weight: 800; }
+  .budget-stat-value.gold { color: var(--gold-dark); }
+  .budget-stat-value.green { color: var(--success); }
+  .budget-stat-value.red { color: var(--danger); }
+  .budget-bar-wrap { margin-top: 4px; }
+  .budget-bar-track { height: 10px; background: rgba(0,0,0,0.07); border-radius: 6px; overflow: hidden; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1); }
+  .budget-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s ease; }
+  .budget-bar-label { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--text-muted); }
+  .project-info { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .project-info strong { color: var(--navy); }
+
+  /* TABS */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 20px; background: var(--bg-input); border-radius: var(--radius-sm); padding: 4px; box-shadow: var(--shadow-neu-inset); }
+  .tab-pill { flex: 1; padding: 10px; font-size: 12px; font-weight: 700; text-align: center; border: none; background: transparent; cursor: pointer; border-radius: 8px; color: var(--text-muted); transition: all 0.2s; }
+  .tab-pill.active { background: var(--bg-card); color: var(--gold-dark); box-shadow: var(--shadow-neu-sm); }
+
+  /* FORMS */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid.cols-1 { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.span-2 { grid-column: span 2; }
+  label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+  input, select, textarea { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 13px; font-size: 13px; color: var(--text); box-shadow: var(--shadow-neu-inset); font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  textarea { resize: vertical; min-height: 70px; }
+  .btn-submit { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 4px 4px 12px rgba(201,168,76,0.35); margin-top: 6px; transition: all 0.2s; letter-spacing: 0.3px; }
+  .btn-submit:hover { box-shadow: 6px 6px 16px rgba(201,168,76,0.5); transform: translateY(-1px); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  /* RECENT ENTRIES */
+  .entry-list { display: flex; flex-direction: column; gap: 10px; }
+  .entry-row { background: var(--bg-input); border-radius: var(--radius-sm); padding: 12px 14px; box-shadow: var(--shadow-neu-sm); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .entry-info { flex: 1; min-width: 0; }
+  .entry-main { font-size: 13px; font-weight: 600; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .entry-amount { font-size: 15px; font-weight: 800; white-space: nowrap; }
+  .entry-amount.expense { color: var(--danger); }
+  .entry-amount.payroll { color: var(--info); }
+  .type-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .type-badge.payroll { background: rgba(52,152,219,0.12); color: var(--info); }
+  .type-badge.expense { background: rgba(231,76,60,0.10); color: var(--danger); }
+  .type-badge.general { background: rgba(243,156,18,0.12); color: var(--warning); }
+  .empty-state { text-align: center; padding: 28px; color: var(--text-muted); font-size: 13px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--navy); color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 13px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: transform 0.3s ease, opacity 0.3s; opacity: 0; z-index: 999; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* HIDDEN */
+  .hidden { display: none !important; }
+
+  @media (max-width: 520px) {
+    .main { padding: 16px; }
+    .budget-overview { grid-template-columns: 1fr 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.span-2 { grid-column: span 1; }
+    .tab-pill { font-size: 11px; padding: 9px 6px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFQAAABUCAYAAAAcaxDBAAAOrUlEQVR42u2ae3Bc1X3Hv79z7t27kmwJZFBqx8TUMbG9L1vI2BTHWQMpdZI6mQTWhD4oNBBoacvgkKYkZdZqUhoSHoVQXkNm6NONN0PaiZOaKY21YEPseIst7e4YYkxMoBBhFNuypN295/x+/UN3HVle2ZIxExjfz8yONHfPOXvP7/ze9wIhISEhISEhISEhISEhISEhISEhISEhISEhISEhISFH0Kf17kUojZXOuSuvUftWngvk8xKqxMmSzaqGAs5udrJZUSe7rHM6yjKzQXRuDdl0dvM0aT9zDRONuMp5djPRvjxg8mOF3t3NU1mbTjdhprObnXz3xebDdzz9IWpp/a7T1JpkU4OtDo8Q0Q4Q/RcBm56+efHzJ7M+nXZm3t3Ny7/53ErltXxHaafDVodGAGiQiuhIE0g7sJUhkHYLxh+68dm1SwvZLKi7m/i9YvIEQE7iu6mtF/jF5Xf/7ueUG31A2ESMX7Fuc1uTWANTHWJTGWLQ6PRo61ldfGDkJoCu7cFmDWBSAlXvAoHKSX43xTnrEEPJIdBnnaaWqOM1K+1GtT88+JCtjfS4zW1Ku55DIg4EZCqDLIKZALASK/kdMflEIpFzHGeBMeY1z/NWFwoFHwC6uro+WK1Wv1fXDiKS0aApVmutRWRjb2/vV+bNm+ft2bOnmkwmr9Ja32atJRF5uVgsfhqAPRI0Mhmdy+VsMpm8ynGcL/u+/1IwRhppYCKRyCmlEgBqSqmrdu7cWQ6UhRtp7vL7dq52veh5ZuTw1i23LNmWyWzQb6TnLxfDX1BOZDVXR4yKRF32K8Uta7tSAE36YNVUBK+1/ltr7UIAF4zd/P79+18jogc8z0sQ0U+Z+WoA1wK4hoiuNsY8AgB79uypZTIZHYlE/tta2+s4TkJrvTqRSCytrwUAuVyuvoE/J6IEgEWNDj8YTwAKIjJLKZUyxlwPAOl0Wk2kuVtvXvz9nhsX3LPlliXbIEL9sbPdZ/5s0dNibZ9yPQKJCBuIyPuW3rdtej2lOuU+dNeuXX2JROIggOH6tf7+ftq3b19l4cKFu1zXZRHZVyqVdk1kjv39/VQoFPYnEonXjDHPEdGyQPjP9ff3U12z4vH4BQDafN/fGxQgx5hdLBaTQFAfZeZrRWQtEV09Z86c2/L5fKWhPxWh7DrQk63PeS3TP3DO6+tKP8t3X1wZVRtqhzAgRMIWIDrTqTpnAziEdesm5c+n5EPnz5/fHGzumHlKqebgupfJZPSqVau8TCajx2jRURpPRGeJyI+YeTsRXZlKpVry+bzp6urSwXrXicgPRaSfiLxG997d3c3xeHwhEc0rlUpPANgQiUTa29raPgqA0un0sZXgunW0cVZBa0T+w68dLLe3m+KK+3u/fum3ts2ACIEIQiCIsHY9h9SoH83E43TKg5LneXyiYEBEJpfL2U2bNlVzuZzN5XK2wcmKiDhEdBDAo57ntTLzZQBQKBTsnDlzoiKyEsC3AUwXEXtMPhmYNBF9HsCTwf9P+L5vmPkmANLR0SFHJ/QbNLq7uWlIpd2W1stsdVgRcJ7XetaXKr56nACnfqcCsHJcKE3vB4D+0tn0a4nyItLa2dk5Kx6Pn9PZ2TlrwYIFMxo6ZSIrIs2+73/XGAMA1wdfcWtr62oi2l8sFncT0fRGppbP520sFosA+BgRPQwAfX19rzLzD7TWlyWTydnBYR7ZY10oAnsZiJiIjBjjVwcHDIC5gHQIG0ACiyINZpk9lf2fMoEqpbS1FkS02hjzFBFtYub/iUQid0/wWwKg5YUXXhj0fT+vlLosFot9IDiUawH8W+AqqJ41jAtGUEp9HMDB3t7e57u6utxg7oOO4ygAvzc+ONXTHxJaJNYoESgV8VyCOAS0AHS2sAXRrwIQya9JoMxstdYQkSeampouZOYVnuctA3BTfUgDLSUApLV+2HVd7TjOJ7q6upqJKG6tXR+4BjuRMRDR9QD+dYyPJhHpqdVqbwC4AYDK5/P1+aPVjggJ5ByxFiAh64/0sfENQLNFeKZY+ysNFYbQqA99JwV63EhHRJXt27cfKpfLA9u3bz/U29s7dJzhFoBEo9Ef+r4/yMxXVKvV60TkJ+VyeWCCqodyuZzt7OycJSILmflfAEihUDDpdFqXy+WaiDzmuu7ceDz+WwBkVKNHl+l6tNBEQJuwYaUcIh35JsTMJ6WfV17zbLE+g4ggIBEGEXVMJbmfikCJiFwAUSKyc+fO5Ql8qG4Q5dXxDmf79u2HRGS967qXENHXReSBiYqOehZgjLmWiHaUy+WB4Dckn89zYC3/yMwgohvG72Ha/w0yAK3cqGK2VrvRfwLpvxFbu50AGS09R/2CsIWIzACAydbyagqaLL7vz3IcxwOwt+7w65E08HOWiEYaRPlG5s5jtI+stQ+JSAHAk6VS6engOwnGHZlfKBTqJnwFgEfGex4Aqlwu7zHGbCGiz8ybN6919B4I2axQvvviCoSuE+u/orTr2OoQ3JYzfx/QX7K14V+S0mo0iyeAGURo63pkh1v3MqcisScAvGjRojOY+V6lFPm+f1cQHGiMgFyllBaReCqVuoSZtYgYrTUZY94ol8vlsVrHzM0AokHg0Pl8fieAJQ00fjoROWMOluPx+O+ISFOxWNxcdwFj06l8Pi9KqX/wPG+9iFwD4P50Oq27u8lAhLYQbVzxtXxBWlq/SkpdYEYOxaBoJYlisQYAEUQgwhChaWcCzQAOHil8T1ZD69E0Ho//NoBdRPSbtVrtD0ul0kYAKpfL2aBagYgc8H3/GSKaxsx3APiqUuprSqk7lFJXBOsd0WilVBHAiwAQXKMxn7E8DSA/2n3L1g+vE8ADADiTyajx6RQAMcZsrFQqmwHMD65zMFkyGzboZ/46/bqwOZ+Ucy5bQ2CWo+RBo0GJSKLVITSfquYIAZBYLNbe1NTUUSgUdr+Nttq7r8l8z/aHvTNm3lA7tB/C9hjbACkCi09s5j/zxQtfnkwHX00mopfL5YG6MOsB4DjrqXHaRhMcHE2y2zXRODWJeQ3H5NFTF8o3aoMDLwqbPSDlHzN9dJeOIcertwBPWbcpnU476XTayeVy9ZvR6XTawa+enKpA0DxGAJLJZFTwGV/T03j3MkHtT4FZqwYB6ETK0Pjgu7s5vVmcLWuX7h0e2NdJpHcrx9UC4WMkqoiU0hoQyr5LH4G8k+6C0tnNuiO+UnKldYJ16yRQLMrEQf2lHuqIvym5NWssAKTv2nGWdZ3HnUjTJ/yRQ0wg1SBZhKlWUz/+q4v6sllRJ0qfJmtyiMfjn3Yc5zwA39m1a9fPUqnUZwF0iMibfX1961OpVMIYc6hcLr+STCa7iOjnvb29/clkMqO1bmPmmrV2c6lU+nmw3gWO4/x0165dBwAglUpdrpR6vzFmkJlz5XJ5CIDE4/GLXNf9iDHmqWKxuKNB4/hkfGjUtJ/xSQX6Ox1pmusPH7JEpCdQc6sc53tizV1bblmy7URCdSbhEjgej1+klJonIhuYeRWAh621P1FK/SWAe4I0aLnW+iUArzDzJVrrpwD0A1hhjHlQaz0DwK3JZPLBvr6+F4hoVa1WOwDgQDKZ/KKIvGmtfSLovGdjsdhXIpFImzHmCmPMnQD+IJ1O7xxTSh5VhQbnLiv+/n//iEh/jNnOgnA00InDIvIWCBUCWi0o7jjeB8UaTChMEVFuhNj4r7ExBWF+HwCU48dXQmcSfohE5FUAHcy8cMaMGY8BoFKp9FIikXi5WCy+GKRBI8zsBxXVCIC6k/9FsVjcHTyqqAL4OIAXiKhKRIOdnZ2zfN9vKhaLjwfjX00kEjO11h/RWuettRUAl1prH8nn86ahVWVH/d3y1h3r3WntV9paBVoYkMCzkAIpdSR4s6nBVIaYCJhIM0EkIEUCVIhotqPdhwFQbg2dkij/irV2HYDfGBgYWAtAgu6OO3v27GigoQ4RVesNDWutHh+llVKVsYeolJJaraYB1MZ1kUZEJFIoFPwFCxbcTkSDSqnbU6lUyzG58gbR6CZe0bZjtdvcemXt0P5hUzlcMZXhqqmOVG1tuGYrQ74/MmiCj2VTYyJSaOQzx8jG+hVW2v0QizyXv6XzQGaDqBP5f3X8x9hZBUCSyeSlWutPep737yIyEwAVCgUmomatdT1Rf1NElsRisfbAPfwi0O72zs7OmYsXL44x8+cA/CiwKM9a2xr4VC+ZTH5q796901Kp1DJmXuZ5Xk8ymZy7e/fuW13X3QTADZ4KHFWv9Jd6aDTk0yVOy5nQ0ZZmt7k16ra0eW5Lm6ej0yPKjbhUP0iaOJ0aZ/HWiU5TzP7WZw9+f30ms0Hn1pB9W2lT92gSS0T0YxFp933/VhF5NEiHwMw9S5cu9QFQsOnhSCTyeSL6QblcfiMQdAnA5cycVkp9u6+vrxDc8BYRGQCAwcHBOwF0WGuvF5ELmfnOQqEwvGDBgn3MvM9aexuA/9y5c+ebY9IzHN0Foqf8w2/daUeGbvKHBm/0hw7e6g8fvMdUhjay9V8mpeE2tzo60qQgcry2ICAipB2I8UfY4jp0d3MslhG8x9OmU5ZerbrvRe8wKgnAroLgM0o75yvtwlQGIYIGQYl8p7nVrR0euP7ZW5c9Vn8X6lQLdGyFxGOzgBOM0YFGU/B4mMcVAlJP3nO5HNf/jlmn0ZoN/JOoNKCAnqMud5TflFxuzVHCWHHPzktE058S5HIdicIfHrRBs1tB4LvT293a4P5vbf3C0r+ol6nvyIsO712EsllQD3rUWOF8+N6dy0C4zYm2fIr9CrhWHRXm0MA/b71lydWjmgmeyosOp93bd/Wnn3t/OVcVbljiX/SNbYtJ6z8GsNxrO+v86qG37t+6tuvm0QQeMhVhnrYCrXecVmIlP9W648tu8/TX/ZHDXaSdvi03L34IWVE4CWGe3gSv1lx4d2Fe+pEX/yR97/Pn1rU3FM4pcwUSCvNtk82qdHazM9mXwUJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQqbA/wNa61gTsFUe5gAAAABJRU5ErkJggg==" alt="JEMA Studios">
+    <div class="logo-text">JEMA <span>STUDIOS</span><span class="logo-badge">Production</span></div>
+  </div>
+  <div class="header-right">
+    <span class="sync-dot" id="sync-dot"></span>
+    <span class="sync-label" id="sync-label">Not connected</span>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ── CONNECT STATE ── -->
+  <div id="state-connect" class="card connect-state">
+    <div class="connect-icon">🔗</div>
+    <div class="connect-title">Connect to get started</div>
+    <div class="connect-sub">Sign in with your Google account to access<br>your project budget and log expenses.</div>
+    <button class="btn-connect" id="connect-btn" onclick="handleConnect()" disabled>⏳ Loading…</button>
+  </div>
+
+  <!-- ── PROJECT SELECTOR ── -->
+  <div id="state-select" class="card hidden">
+    <div class="card-title">Select Your Project</div>
+    <div class="project-select-wrap">
+      <select id="project-select" onchange="onProjectSelect()">
+        <option value="">— Choose a project —</option>
+      </select>
+      <span class="project-select-arrow">▾</span>
+    </div>
+  </div>
+
+  <!-- ── BUDGET OVERVIEW ── -->
+  <div id="state-budget" class="card hidden">
+    <div class="card-title">Budget Overview</div>
+    <div class="project-info" id="project-info"></div>
+    <div class="budget-overview">
+      <div class="budget-stat">
+        <div class="budget-stat-label">Budget Cap</div>
+        <div class="budget-stat-value gold" id="stat-cap">—</div>
+      </div>
+      <div class="budget-stat">
+        <div class="budget-stat-label">Spent</div>
+        <div class="budget-stat-value red" id="stat-spent">—</div>
+      </div>
+      <div class="budget-stat">
+        <div class="budget-stat-label">Remaining</div>
+        <div class="budget-stat-value green" id="stat-remaining">—</div>
+      </div>
+    </div>
+    <div class="budget-bar-wrap">
+      <div class="budget-bar-track">
+        <div class="budget-bar-fill" id="budget-bar" style="width:0%;background:var(--success)"></div>
+      </div>
+      <div class="budget-bar-label">
+        <span id="bar-pct-label">0% used</span>
+        <span id="bar-cap-label"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LOG ENTRY ── -->
+  <div id="state-log" class="card hidden">
+    <div class="card-title">Log an Entry</div>
+    <div class="tab-bar">
+      <button class="tab-pill active" onclick="switchTab('payroll',this)">👤 Payroll</button>
+      <button class="tab-pill" onclick="switchTab('project',this)">🎬 Project Expense</button>
+      <button class="tab-pill" onclick="switchTab('general',this)">🏢 General Expense</button>
+    </div>
+
+    <!-- PAYROLL FORM -->
+    <div id="form-payroll">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Team Member</label>
+          <select id="pay-member">
+            <option value="">Select member</option>
+            <option>IB</option>
+            <option>KW</option>
+            <option>ZuZu</option>
+            <option>Max</option>
+            <option>Emmanuel B. (Fiso)</option>
+            <option>Nana G Boateng</option>
+            <option>Holis Sarkodieh</option>
+            <option>Ernest Obobisa</option>
+            <option>Gyimah N K</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select id="pay-role">
+            <option>Photographer</option>
+            <option>Cinematographer</option>
+            <option>Assistant</option>
+            <option>Editor</option>
+            <option>Second Shooter</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input type="number" id="pay-amount" placeholder="0.00" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Payment Method</label>
+          <select id="pay-method">
+            <option>Cash</option>
+            <option>Zelle TD (OWACHI)</option>
+            <option>Zelle CHASE (IB)</option>
+            <option>KW – CIBC</option>
+            <option>PayPal</option>
+            <option>Wise</option>
+            <option>Stripe</option>
+            <option>Business Credit Card</option>
+            <option>Visa Debit</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date Paid</label>
+          <input type="date" id="pay-date">
+        </div>
+        <div class="form-group">
+          <label>Notes (optional)</label>
+          <input type="text" id="pay-notes" placeholder="Any notes…">
+        </div>
+      </div>
+      <button class="btn-submit" onclick="submitPayroll()">✓ Log Payroll Entry</button>
+    </div>
+
+    <!-- PROJECT EXPENSE FORM -->
+    <div id="form-project" class="hidden">
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Category</label>
+          <select id="proj-category">
+            <option value="">Select category</option>
+            <option>Travel – Flights</option><option>Travel – Accommodation</option><option>Travel – Uber/Taxi</option><option>Travel – Other</option>
+            <option>Meals – Crew</option>
+            <option>Overheads – Videographer</option><option>Overheads – Photographer</option><option>Overheads – Assistant</option>
+            <option>Equipment Rental – Camera</option><option>Equipment Rental – Lens</option><option>Equipment Rental – Lighting</option><option>Equipment Rental – Other</option>
+            <option>Equipment Purchase — Camera</option><option>Equipment Purchase — Lens</option><option>Equipment Purchase — Audio</option><option>Equipment Purchase — Lighting</option><option>Equipment Purchase — Computer</option><option>Equipment Purchase — Accessories</option>
+            <option>Studio Rental – Local</option><option>Studio Rental – International</option>
+            <option>Shipping – Local</option><option>Shipping – International</option><option>Courier/Dispatch</option>
+            <option>Client Gifts</option>
+            <option>Marketing – Ads (Studio Branding)</option><option>Marketing – Ads (Meta)</option>
+            <option>Miscellaneous – Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input type="number" id="proj-amount" placeholder="0.00" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="proj-date">
+        </div>
+        <div class="form-group">
+          <label>Payment Method</label>
+          <select id="proj-method">
+            <option>Cash</option>
+            <option>Business Credit Card</option>
+            <option>Visa Debit</option>
+            <option>KW – CIBC</option>
+            <option>Zelle TD (OWACHI)</option>
+            <option>Zelle CHASE (IB)</option>
+            <option>PayPal</option>
+            <option>Wise</option>
+            <option>Stripe</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Receipt</label>
+          <select id="proj-receipt">
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+        <div class="form-group span-2">
+          <label>Description</label>
+          <input type="text" id="proj-desc" placeholder="What was this for?">
+        </div>
+      </div>
+      <button class="btn-submit" onclick="submitProjectExpense()">✓ Log Project Expense</button>
+    </div>
+
+    <!-- GENERAL EXPENSE FORM -->
+    <div id="form-general" class="hidden">
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Category</label>
+          <select id="gen-category">
+            <option value="">Select category</option>
+            <option>Subscriptions – Adobe</option><option>Subscriptions – GoDaddy</option><option>Subscriptions – Pixieset</option><option>Subscriptions – Others</option>
+            <option>Office Supplies – General</option>
+            <option>Bank Fees</option><option>Currency Conversion Fees</option><option>Platform Fees</option><option>Other Fees</option>
+            <option>Marketing – Ads (Studio Branding)</option><option>Marketing – Ads (Meta)</option>
+            <option>Legal</option><option>Accounting/Tax</option><option>Consulting</option><option>Other Professional</option>
+            <option>Workshops/Conferences</option><option>Online Courses</option><option>Books/Materials</option>
+            <option>Cash Transfer to KW</option><option>Cash Transfer to IB</option><option>Cash Transfer to OT</option><option>Cash Deposit</option>
+            <option>Bill Paid on Behalf of Studio</option>
+            <option>Vendor Gifts</option><option>Other Gifts</option>
+            <option>Miscellaneous – Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input type="number" id="gen-amount" placeholder="0.00" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="gen-date">
+        </div>
+        <div class="form-group">
+          <label>Payment Method</label>
+          <select id="gen-method">
+            <option>Cash</option>
+            <option>Business Credit Card</option>
+            <option>Visa Debit</option>
+            <option>KW – CIBC</option>
+            <option>Zelle TD (OWACHI)</option>
+            <option>Zelle CHASE (IB)</option>
+            <option>PayPal</option>
+            <option>Wise</option>
+            <option>Stripe</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Receipt</label>
+          <select id="gen-receipt">
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+        <div class="form-group span-2">
+          <label>Description</label>
+          <input type="text" id="gen-desc" placeholder="What was this for?">
+        </div>
+      </div>
+      <button class="btn-submit" onclick="submitGeneralExpense()">✓ Log General Expense</button>
+    </div>
+  </div>
+
+  <!-- ── RECENT ENTRIES ── -->
+  <div id="state-recent" class="card hidden">
+    <div class="card-title">Recent Entries — <span id="recent-project-name" style="color:var(--gold-dark)"></span></div>
+    <div class="entry-list" id="entry-list"></div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG (same sheet as main system) ───────────────────────────────────────
+const SPREADSHEET_ID = '1Vi9UYob4V-WP8Xgv9W2uyqsNaSaZsIxjbLReQ4ZNlpo';
+const SHEETS_SCOPE   = 'https://www.googleapis.com/auth/spreadsheets';
+const CLIENT_ID      = '304894248307-ohshubs8o36kksgqlbbr8q0doe1b695k.apps.googleusercontent.com';
+const SHEET_JOBS     = 'MASTER_JOBS_2026';
+const SHEET_EXP      = 'EXPENSES_2026';
+const SHEET_PAY      = 'TEAM_PAYROLL_2026';
+
+let gToken = null, gTokenExpiry = 0, gTokenClient = null;
+let allJobs = [], projectExpenses = [], projectPayroll = [];
+let selectedJob = null;
+const fmt = n => '$' + Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+const today = () => new Date().toISOString().slice(0,10);
+
+// ── SET DEFAULTS ─────────────────────────────────────────────────────────────
+document.getElementById('pay-date').value  = today();
+document.getElementById('proj-date').value = today();
+document.getElementById('gen-date').value  = today();
+
+// ── GOOGLE AUTH ───────────────────────────────────────────────────────────────
+function initAuth() {
+  if (typeof google === 'undefined' || !google.accounts) { setTimeout(initAuth, 500); return; }
+  gTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: SHEETS_SCOPE,
+    callback: onToken
+  });
+  document.getElementById('connect-btn').textContent = '🔗 Connect Google Account';
+  document.getElementById('connect-btn').disabled = false;
+}
+function handleConnect() {
+  // Try silent first
+  gTokenClient.requestAccessToken({ prompt: '' });
+}
+function onToken(resp) {
+  if (resp.error) { showToast('Auth failed: ' + resp.error); return; }
+  gToken = resp.access_token;
+  gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
+  document.getElementById('sync-dot').classList.add('connected');
+  document.getElementById('sync-label').textContent = 'Connected';
+  document.getElementById('state-connect').classList.add('hidden');
+  loadJobs();
+}
+
+// ── API HELPERS ───────────────────────────────────────────────────────────────
+async function gGet(range) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + gToken } });
+  if (!r.ok) throw new Error('GET failed: ' + r.status);
+  return r.json();
+}
+async function gAppend(sheet, values) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheet)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const r = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: JSON.stringify({ values }) });
+  if (!r.ok) throw new Error('Append failed: ' + r.status);
+  return r.json();
+}
+
+// ── LOAD JOBS ─────────────────────────────────────────────────────────────────
+async function loadJobs() {
+  try {
+    // Cols: \, Client, Day, Month, Year, Location, Package, Total, Dep1, Dep2, Balance, Account, Stage, Notes, BudgetCap
+    const data = await gGet(SHEET_JOBS + '!A:O');
+    const rows = (data.values || []).slice(1); // skip header
+    // Only show active jobs (Awaiting Event)
+    allJobs = rows
+      .filter(r => (r[12]||'').trim() === 'Awaiting Event')
+      .map(r => ({
+        invoice: r[0]||'', client: r[1]||'', day: r[2]||'', month: r[3]||'',
+        year: r[4]||'', location: r[5]||'', pkg: r[6]||'',
+        total: parseFloat(r[7])||0,
+        budget_cap: parseFloat(r[14])||35,
+        stage: r[12]||''
+      }));
+
+    const sel = document.getElementById('project-select');
+    allJobs.forEach((j,i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `${j.client} · ${j.month} ${j.year} · ${j.location}`;
+      sel.appendChild(opt);
+    });
+    document.getElementById('state-select').classList.remove('hidden');
+  } catch(e) { showToast('Error loading jobs: ' + e.message); }
+}
+
+// ── PROJECT SELECTED ──────────────────────────────────────────────────────────
+async function onProjectSelect() {
+  const idx = document.getElementById('project-select').value;
+  if (idx === '') {
+    document.getElementById('state-budget').classList.add('hidden');
+    document.getElementById('state-log').classList.add('hidden');
+    document.getElementById('state-recent').classList.add('hidden');
+    return;
+  }
+  selectedJob = allJobs[parseInt(idx)];
+  await loadProjectData();
+}
+
+async function loadProjectData() {
+  if (!selectedJob) return;
+  try {
+    const capPct = selectedJob.budget_cap > 0 ? selectedJob.budget_cap : 35;
+    const capAmt = selectedJob.total * (capPct / 100);
+
+    // Load expenses for this project
+    const expData = await gGet(SHEET_EXP + '!A:H');
+    const expRows = (expData.values || []).slice(1);
+    projectExpenses = expRows.filter(r => (r[4]||'').trim() === selectedJob.client.trim());
+    const totalExp = projectExpenses.reduce((s,r) => s + (parseFloat(r[2])||0), 0);
+
+    // Load payroll for this project
+    const payData = await gGet(SHEET_PAY + '!A:G');
+    const payRows = (payData.values || []).slice(1);
+    projectPayroll = payRows.filter(r => (r[1]||'').trim() === selectedJob.client.trim());
+    const totalPay = projectPayroll.reduce((s,r) => s + (parseFloat(r[5])||0), 0);
+
+    const totalSpent = totalExp + totalPay;
+    const remaining  = capAmt - totalSpent;
+    const pct = capAmt > 0 ? Math.min((totalSpent / capAmt) * 100, 100) : 0;
+
+    // Update budget display
+    document.getElementById('project-info').innerHTML =
+      `<strong>${selectedJob.client}</strong> &nbsp;·&nbsp; ${selectedJob.day} ${selectedJob.month} ${selectedJob.year} &nbsp;·&nbsp; ${selectedJob.location}<br>
+       <span style="margin-top:4px;display:block">${selectedJob.pkg}</span>`;
+
+    document.getElementById('stat-cap').textContent       = fmt(capAmt);
+    document.getElementById('stat-spent').textContent     = fmt(totalSpent);
+    document.getElementById('stat-remaining').textContent = fmt(remaining > 0 ? remaining : 0);
+    document.getElementById('stat-remaining').className   = 'budget-stat-value ' + (remaining <= 0 ? 'red' : remaining < capAmt * 0.1 ? 'gold' : 'green');
+
+    const bar = document.getElementById('budget-bar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
+    document.getElementById('bar-pct-label').textContent = pct.toFixed(1) + '% used';
+    document.getElementById('bar-cap-label').textContent = capPct + '% budget cap of contract';
+
+    document.getElementById('state-budget').classList.remove('hidden');
+    document.getElementById('state-log').classList.remove('hidden');
+
+    // Render recent entries
+    renderRecent(totalExp, totalPay);
+
+  } catch(e) { showToast('Error loading project data: ' + e.message); }
+}
+
+function renderRecent() {
+  const listEl = document.getElementById('entry-list');
+  const combined = [
+    ...projectPayroll.map(r => ({ type:'payroll', label: r[2]||'Team Member', sub: r[3]||'', date: r[0]||'', amount: parseFloat(r[5])||0 })),
+    ...projectExpenses.map(r => {
+      const isGeneral = !r[4] || r[4].trim() === '';
+      return { type: isGeneral ? 'general' : 'expense', label: r[1]||'Expense', sub: r[5]||'', date: r[0]||'', amount: parseFloat(r[2])||0 };
+    })
+  ].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 12);
+
+  document.getElementById('recent-project-name').textContent = selectedJob.client;
+  document.getElementById('state-recent').classList.remove('hidden');
+
+  if (combined.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">No entries logged yet for this project.</div>';
+    return;
+  }
+  listEl.innerHTML = combined.map(e => `
+    <div class="entry-row">
+      <div class="entry-info">
+        <div class="entry-main">${e.label}</div>
+        <div class="entry-sub">${e.date}${e.sub ? ' · ' + e.sub : ''}</div>
+      </div>
+      <span class="type-badge ${e.type}">${e.type === 'payroll' ? 'Payroll' : e.type === 'general' ? 'General' : 'Project'}</span>
+      <div class="entry-amount ${e.type === 'payroll' ? 'payroll' : 'expense'}">${fmt(e.amount)}</div>
+    </div>`).join('');
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  ['payroll','project','general'].forEach(t => {
+    document.getElementById('form-' + t).classList.add('hidden');
+  });
+  document.querySelectorAll('.tab-pill').forEach(b => b.classList.remove('active'));
+  document.getElementById('form-' + tab).classList.remove('hidden');
+  btn.classList.add('active');
+}
+
+// ── SUBMIT PAYROLL ────────────────────────────────────────────────────────────
+async function submitPayroll() {
+  if (!selectedJob) return;
+  const member = document.getElementById('pay-member').value;
+  const role   = document.getElementById('pay-role').value;
+  const amount = parseFloat(document.getElementById('pay-amount').value);
+  const method = document.getElementById('pay-method').value;
+  const date   = document.getElementById('pay-date').value;
+  const notes  = document.getElementById('pay-notes').value;
+  if (!member || !amount || !date) { showToast('Please fill in member, amount and date'); return; }
+  const btn = document.querySelector('#form-payroll .btn-submit');
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
+  try {
+    // payroll cols: Date_Paid, Project_Tag, Team_Member, Role, Payment_Method, Amount, Notes
+    await gAppend(SHEET_PAY, [[date, selectedJob.client, member, role, method, amount, notes]]);
+    showToast('✅ Payroll entry saved!');
+    document.getElementById('pay-amount').value = '';
+    document.getElementById('pay-notes').value  = '';
+    await loadProjectData();
+  } catch(e) { showToast('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = '✓ Log Payroll Entry';
+}
+
+// ── SUBMIT PROJECT EXPENSE ────────────────────────────────────────────────────
+async function submitProjectExpense() {
+  if (!selectedJob) return;
+  const category = document.getElementById('proj-category').value;
+  const amount   = parseFloat(document.getElementById('proj-amount').value);
+  const date     = document.getElementById('proj-date').value;
+  const method   = document.getElementById('proj-method').value;
+  const receipt  = document.getElementById('proj-receipt').value;
+  const desc     = document.getElementById('proj-desc').value;
+  if (!category || !amount || !date) { showToast('Please fill in category, amount and date'); return; }
+  const btn = document.querySelector('#form-project .btn-submit');
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
+  try {
+    // expenses cols: Date, Category, Amount, Payment_Method, Project_Tag, Description, Receipt_Attached, Notes
+    await gAppend(SHEET_EXP, [[date, category, amount, method, selectedJob.client, desc, receipt, '']]);
+    showToast('✅ Project expense saved!');
+    document.getElementById('proj-amount').value = '';
+    document.getElementById('proj-desc').value   = '';
+    await loadProjectData();
+  } catch(e) { showToast('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = '✓ Log Project Expense';
+}
+
+// ── SUBMIT GENERAL EXPENSE ────────────────────────────────────────────────────
+async function submitGeneralExpense() {
+  const category = document.getElementById('gen-category').value;
+  const amount   = parseFloat(document.getElementById('gen-amount').value);
+  const date     = document.getElementById('gen-date').value;
+  const method   = document.getElementById('gen-method').value;
+  const receipt  = document.getElementById('gen-receipt').value;
+  const desc     = document.getElementById('gen-desc').value;
+  if (!category || !amount || !date) { showToast('Please fill in category, amount and date'); return; }
+  const btn = document.querySelector('#form-general .btn-submit');
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
+  try {
+    // General expense: no project tag
+    await gAppend(SHEET_EXP, [[date, category, amount, method, '', desc, receipt, '']]);
+    showToast('✅ General expense saved!');
+    document.getElementById('gen-amount').value = '';
+    document.getElementById('gen-desc').value   = '';
+  } catch(e) { showToast('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = '✓ Log General Expense';
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+setTimeout(initAuth, 600);
+</script>
+</body>
+</html>
