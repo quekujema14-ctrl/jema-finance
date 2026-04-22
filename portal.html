@@ -376,6 +376,7 @@ const SHEET_TEAM     = 'TEAM';
 let gToken = null, gTokenExpiry = 0, gTokenClient = null;
 let allJobs = [], projectExpenses = [], projectPayroll = [];
 let selectedJob = null;
+let LISTS = {}; // populated from LISTS sheet
 const fmt = n => '$' + Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 const today = () => new Date().toISOString().slice(0,10);
 
@@ -405,6 +406,7 @@ function onToken(resp) {
   document.getElementById('sync-dot').classList.add('connected');
   document.getElementById('sync-label').textContent = 'Connected';
   document.getElementById('state-connect').classList.add('hidden');
+  loadLists();
   loadTeamMembers();
   loadJobs();
 }
@@ -421,6 +423,65 @@ async function gAppend(sheet, values) {
   const r = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: JSON.stringify({ values }) });
   if (!r.ok) throw new Error('Append failed: ' + r.status);
   return r.json();
+}
+
+// ── LOAD LISTS (dynamic dropdowns) ───────────────────────────────────────────
+async function loadLists() {
+  try {
+    const data = await gGet('LISTS!A1:Z100');
+    const rows = data.values || [];
+    if (!rows.length) return;
+    const headers = rows[0];
+    headers.forEach((h, ci) => {
+      LISTS[h] = rows.slice(1).map(r => (r[ci]||'').trim()).filter(v => v);
+    });
+
+    // Helper to populate a <select> from a LISTS key, keeping placeholder
+    const fill = (id, key) => {
+      const sel = document.getElementById(id);
+      if (!sel || !LISTS[key]) return;
+      const current = sel.value;
+      // Remove all except first placeholder option
+      while (sel.options.length > 1) sel.remove(1);
+      LISTS[key].forEach(v => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        sel.appendChild(o);
+      });
+      if (current) sel.value = current;
+    };
+
+    // Roles
+    fill('pay-role', 'ROLES');
+
+    // Payment methods — all three forms
+    ['pay-method','proj-method','gen-method'].forEach(id => fill(id, 'PAYMENT_METHODS'));
+
+    // Project expense categories
+    const projCatIds = ['proj-category'];
+    projCatIds.forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel || !LISTS['CATEGORIES']) return;
+      while (sel.options.length > 1) sel.remove(1);
+      // Project-relevant categories (exclude overhead/subscription/admin)
+      const exclude = ['Subscriptions','Office Supplies','Bank Fees','Currency Conversion','Platform Fees','Other Fees','Legal','Accounting','Consulting','Other Professional','Workshops','Online Courses','Books','Cash Transfer','Bill Paid','Vendor Gifts','Other Gifts'];
+      LISTS['CATEGORIES']
+        .filter(c => !exclude.some(ex => c.startsWith(ex)))
+        .forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+    });
+
+    // General expense categories
+    const genSel = document.getElementById('gen-category');
+    if (genSel && LISTS['CATEGORIES']) {
+      while (genSel.options.length > 1) genSel.remove(1);
+      // General/overhead only — exclude project-specific ones
+      const exclude = ['Travel –','Meals –','Equipment Rental','Studio Rental','Client Gifts','Shipping'];
+      LISTS['CATEGORIES']
+        .filter(c => !exclude.some(ex => c.startsWith(ex)))
+        .forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; genSel.appendChild(o); });
+    }
+
+  } catch(e) { console.warn('Could not load lists:', e.message); }
 }
 
 // ── LOAD TEAM MEMBERS ────────────────────────────────────────────────────────
