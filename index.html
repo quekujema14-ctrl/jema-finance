@@ -207,6 +207,95 @@
     .kpi-grid { grid-template-columns: 1fr 1fr; }
   }
 
+  /* ── MOBILE CARD TABLE SYSTEM ──────────────────────────────────────────
+     On phone, all tables flip to card-per-row layout. Each td becomes a
+     labelled row. data-label attributes are set by the render functions.  */
+  @media (max-width: 768px) {
+    /* Hide the <thead> — labels come from data-label on each <td> */
+    .table-wrap table thead { display: none; }
+    .table-wrap table, .table-wrap tbody { display: block; width: 100%; }
+    .table-wrap tr {
+      display: flex; flex-direction: column;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+      box-shadow: var(--shadow-neu-sm);
+      overflow: hidden;
+    }
+    .table-wrap tr:hover td { background: none; }
+    .table-wrap td {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 14px; border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .table-wrap td:last-child { border-bottom: none; }
+    .table-wrap td::before {
+      content: attr(data-label);
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; color: var(--text-muted);
+      flex-shrink: 0; margin-right: 12px;
+    }
+    /* Primary td (client/member name) = card header, always first */
+    .table-wrap td.td-primary {
+      background: var(--navy); color: #fff; font-weight: 700; font-size: 14px;
+      padding: 12px 14px; order: -1;
+    }
+    .table-wrap td.td-primary::before { color: rgba(255,255,255,0.55); }
+    /* Actions td — centered, no label */
+    .table-wrap td.td-actions {
+      justify-content: center; background: var(--bg); gap: 8px;
+    }
+    .table-wrap td.td-actions::before { display: none; }
+    /* Hide non-essential columns on mobile */
+    .table-wrap td[data-label="Invoice"],
+    .table-wrap td[data-label="Location"],
+    .table-wrap td[data-label="Package"],
+    .table-wrap td[data-label="Dep 1"],
+    .table-wrap td[data-label="Dep 2"],
+    .table-wrap td[data-label="Account"],
+    .table-wrap td[data-label="Method"],
+    .table-wrap td[data-label="Project"],
+    .table-wrap td[data-label="Description"],
+    .table-wrap td[data-label="Receipt"],
+    .table-wrap td[data-label="Notes"],
+    .table-wrap td[data-label="Role"] { display: none; }
+
+    /* Modal → full-width bottom sheet on mobile */
+    .modal-overlay { padding: 0; align-items: flex-end; }
+    .modal {
+      border-radius: var(--radius) var(--radius) 0 0;
+      max-width: 100%; width: 100%;
+      max-height: 92vh; overflow-y: auto;
+    }
+
+    /* Section header → stack on mobile */
+    .section-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .table-header { flex-direction: column; align-items: stretch; gap: 8px; }
+    .table-actions { flex-wrap: wrap; gap: 6px; }
+    .search-box { width: 100%; }
+    /* Hide filter dropdowns on mobile — search is enough */
+    .table-actions .filter-select { display: none; }
+
+    /* Stats row → 2 col grid */
+    .stats-row { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+    .stat-card { padding: 12px; }
+
+    /* KPI */
+    .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .kpi-value { font-size: 20px; }
+    .kpi-card { padding: 12px 10px; }
+    .kpi-label { font-size: 10px; }
+
+    /* Upcoming jobs list */
+    .upcoming-card { font-size: 13px; }
+
+    /* Drawer full-width */
+    .drawer { border-radius: var(--radius) var(--radius) 0 0; }
+
+    /* Budget panel */
+    .budget-panel-body { grid-template-columns: 1fr; }
+  }
+
   /* SCROLL */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
@@ -326,16 +415,12 @@
     .charts-row   { grid-template-columns:1fr; }
     .form-grid    { grid-template-columns:1fr; }
     .form-group.span-2 { grid-column:span 1; }
-    .main         { padding:12px 10px 80px; }
-    .kpi-grid     { grid-template-columns:1fr 1fr; gap:10px; }
-    .kpi-value    { font-size:22px; }
-    .kpi-card     { padding:14px; }
+    .main         { padding:12px 10px 90px; }
     .nav-bar      { display:none; }
     .app-header   { padding:0 14px; }
     .header-meta  { display:none; }
     .mob-nav      { display:block; }
     .fab          { display:flex; align-items:center; justify-content:center; }
-    .budget-panel-body { grid-template-columns:1fr; }
     .section-title { font-size:17px; }
     .chart-wrap   { height:180px; }
     .logo-text    { font-size:15px; }
@@ -344,6 +429,10 @@
     .mob-nav { display:none !important; }
     .fab     { display:none !important; }
   }
+
+  /* ── MOBILE NAV — 5 tabs ────────────────────────────────────────── */
+  .mob-nav-btn { font-size:9px; padding:4px 8px; }
+  .mob-nav-btn .icon { font-size:18px; }
 
   /* GOOGLE SHEETS SYNC UI */
   .sync-bar { display: flex; align-items: center; gap: 10px; background:var(--bg-card);
@@ -1642,6 +1731,9 @@ function exportJobsPDF() {
     <button class="mob-nav-btn" id="mob-btn-expenses" onclick="showTab('expenses');setMobActive('expenses')">
       <span class="icon">💳</span>Expenses
     </button>
+    <button class="mob-nav-btn" id="mob-btn-payroll" onclick="showTab('payroll');setMobActive('payroll')">
+      <span class="icon">👥</span>Payroll
+    </button>
     <button class="mob-nav-btn" id="mob-btn-reports" onclick="showTab('reports');setMobActive('reports')">
       <span class="icon">📈</span>Reports
     </button>
@@ -1745,6 +1837,9 @@ function exportReportPDF() {
     </button>
     <button class="mob-nav-btn" id="mob-btn-expenses" onclick="showTab('expenses');setMobActive('expenses')">
       <span class="icon">💳</span>Expenses
+    </button>
+    <button class="mob-nav-btn" id="mob-btn-payroll" onclick="showTab('payroll');setMobActive('payroll')">
+      <span class="icon">👥</span>Payroll
     </button>
     <button class="mob-nav-btn" id="mob-btn-reports" onclick="showTab('reports');setMobActive('reports')">
       <span class="icon">📈</span>Reports
@@ -2299,22 +2394,20 @@ function renderJobs(filtered) {
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="12" class="table-empty">No jobs found</td></tr>'; return; }
   tbody.innerHTML = list.map(j => `
     <tr>
-      <td style="color:var(--text-muted);font-size:12px">${j.invoice}</td>
-      <td style="font-weight:600;color:var(--text)">${j.client}</td>
-      <td style="white-space:nowrap">${j.day} ${(j.month||'').slice(0,3)} ${j.year}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${j.location}</td>
-      <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${j.pkg}">${j.pkg}</td>
-      <td style="font-weight:600">${fmt(j.total)}</td>
-      <td style="color:var(--success)">${fmt(j.dep1)}</td>
-      <td style="color:var(--success)">${j.dep2 ? fmt(j.dep2) : '—'}</td>
-      <td class="${fmtN(j.balance)>0?'bal-owed':'bal-paid'}">${fmtN(j.balance)>0 ? fmt(j.balance) : '✓ Paid'}</td>
-      <td>${accountBadge(j.account)}</td>
-      <td>${stageBadge(j.stage)}</td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="editJob(${j.id})" title="Edit">✏️</button>
-          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteJob(${j.id})" title="Delete">🗑</button>
-        </div>
+      <td data-label="Invoice" style="color:var(--text-muted);font-size:12px">${j.invoice}</td>
+      <td class="td-primary" data-label="Client">${j.client}</td>
+      <td data-label="Date" style="white-space:nowrap">${j.day} ${(j.month||'').slice(0,3)} ${j.year}</td>
+      <td data-label="Location" style="font-size:12px;color:var(--text-muted)">${j.location}</td>
+      <td data-label="Package" style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${j.pkg}">${j.pkg}</td>
+      <td data-label="Contract" style="font-weight:600">${fmt(j.total)}</td>
+      <td data-label="Dep 1" style="color:var(--success)">${fmt(j.dep1)}</td>
+      <td data-label="Dep 2" style="color:var(--success)">${j.dep2 ? fmt(j.dep2) : '—'}</td>
+      <td data-label="Balance" class="${fmtN(j.balance)>0?'bal-owed':'bal-paid'}">${fmtN(j.balance)>0 ? fmt(j.balance) : '✓ Paid'}</td>
+      <td data-label="Account">${accountBadge(j.account)}</td>
+      <td data-label="Stage">${stageBadge(j.stage)}</td>
+      <td class="td-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="editJob(${j.id})" title="Edit">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteJob(${j.id})" title="Delete">🗑</button>
       </td>
     </tr>
   `).join('');
@@ -2443,19 +2536,17 @@ function renderExpenses(filtered) {
       : `<span style="font-size:12px;color:var(--text-muted)">${e.project}</span>`;
     const rowStyle = isGeneral ? 'background:rgba(52,152,219,0.03)' : '';
     return `<tr style="${rowStyle}">
-      <td style="white-space:nowrap">${e.date||'—'}</td>
-      <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.category}">${e.category}</td>
-      <td style="font-weight:700;color:var(--danger)">${fmt(e.amount)}</td>
-      <td style="font-size:12px">${e.payment||'—'}</td>
-      <td>${projectCell}</td>
-      <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.desc}">${e.desc||'—'}</td>
-      <td>${receiptBadge(e.receipt)}</td>
-      <td style="font-size:12px;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.notes}">${e.notes||'—'}</td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="editExpense(${e.id})">✏️</button>
-          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteExpense(${e.id})">🗑</button>
-        </div>
+      <td data-label="Date" style="white-space:nowrap">${e.date||'—'}</td>
+      <td class="td-primary" data-label="Category" title="${e.category}">${e.category}</td>
+      <td data-label="Amount" style="font-weight:700;color:var(--danger)">${fmt(e.amount)}</td>
+      <td data-label="Method" style="font-size:12px">${e.payment||'—'}</td>
+      <td data-label="Project">${projectCell}</td>
+      <td data-label="Description" style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.desc}">${e.desc||'—'}</td>
+      <td data-label="Receipt">${receiptBadge(e.receipt)}</td>
+      <td data-label="Notes" style="font-size:12px;color:var(--text-muted)" title="${e.notes}">${e.notes||'—'}</td>
+      <td class="td-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="editExpense(${e.id})">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteExpense(${e.id})">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -2559,18 +2650,16 @@ function renderPayroll(filtered) {
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="table-empty">No payroll entries</td></tr>'; return; }
   tbody.innerHTML = list.map(p => `
     <tr>
-      <td style="white-space:nowrap">${p.date||'—'}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${p.project||'—'}</td>
-      <td style="font-weight:600;color:var(--text)">${p.member}</td>
-      <td><span class="badge badge-assigned">${p.role||'—'}</span></td>
-      <td style="font-size:12px">${p.payment||'—'}</td>
-      <td style="font-weight:700;color:var(--info)">${fmtN(p.amount)>0?fmt(p.amount):'—'}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${p.notes||'—'}</td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="editPayroll(${p.id})">✏️</button>
-          <button class="btn btn-danger btn-sm btn-icon" onclick="deletePayroll(${p.id})">🗑</button>
-        </div>
+      <td data-label="Date" style="white-space:nowrap">${p.date||'—'}</td>
+      <td data-label="Project" style="font-size:12px;color:var(--text-muted)">${p.project||'—'}</td>
+      <td class="td-primary" data-label="Member">${p.member}</td>
+      <td data-label="Role"><span class="badge badge-assigned">${p.role||'—'}</span></td>
+      <td data-label="Method" style="font-size:12px">${p.payment||'—'}</td>
+      <td data-label="Amount" style="font-weight:700;color:var(--info)">${fmtN(p.amount)>0?fmt(p.amount):'—'}</td>
+      <td data-label="Notes" style="font-size:12px;color:var(--text-muted)">${p.notes||'—'}</td>
+      <td class="td-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="editPayroll(${p.id})">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deletePayroll(${p.id})">🗑</button>
       </td>
     </tr>
   `).join('');
@@ -2973,6 +3062,9 @@ setTimeout(initGoogleSync, 600);
     </button>
     <button class="mob-nav-btn" id="mob-btn-expenses" onclick="showTab('expenses');setMobActive('expenses')">
       <span class="icon">💳</span>Expenses
+    </button>
+    <button class="mob-nav-btn" id="mob-btn-payroll" onclick="showTab('payroll');setMobActive('payroll')">
+      <span class="icon">👥</span>Payroll
     </button>
     <button class="mob-nav-btn" id="mob-btn-reports" onclick="showTab('reports');setMobActive('reports')">
       <span class="icon">📈</span>Reports
