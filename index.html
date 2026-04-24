@@ -781,7 +781,7 @@
         </div>
         <div class="form-group">
           <label>Balance Remaining ($)</label>
-          <input type="number" id="jf-balance" placeholder="Auto-calculated">
+          <input type="number" id="jf-balance" placeholder="Auto-calculated" readonly style="cursor:default;opacity:0.65;background:var(--bg-input);" title="Auto-calculated from Contract − Dep 1 − Dep 2">
         </div>
         <div class="form-group">
           <label>Paid Account</label>
@@ -1285,7 +1285,16 @@ async function pushToSheets() {
 async function pushSheet(type, data) {
   const sheetName = SHEET_NAMES[type];
   const headers = SHEET_HEADERS[type];
-  const rows = data.map(obj => objToRow(type, obj));
+  const rows = data.map((obj, i) => {
+    const row = objToRow(type, obj);
+    if (type === 'jobs') {
+      // Column K (index 10) = Balance_Remaining — always write as formula so it
+      // auto-updates when Deposit 1 or Deposit 2 changes, never hardcoded.
+      const n = i + 2; // sheet row number (data starts at row 2)
+      row[10] = `=IF(H${n}="","",H${n}-I${n}-J${n})`;
+    }
+    return row;
+  });
   // Write header row + data in one PUT (clear excess rows first)
   await gClear(sheetName + '!A2:Z');
   await gPut(sheetName + '!A1', [headers, ...rows]);
@@ -2372,7 +2381,9 @@ function editJob(id) {
   document.getElementById('jf-total').value = j.total||'';
   document.getElementById('jf-dep1').value = j.dep1||'';
   document.getElementById('jf-dep2').value = j.dep2||'';
-  document.getElementById('jf-balance').value = j.balance||'';
+  // Always recalculate balance — never load the stored value which may be stale
+  const _t = parseFloat(j.total)||0, _d1 = parseFloat(j.dep1)||0, _d2 = parseFloat(j.dep2)||0;
+  document.getElementById('jf-balance').value = Math.max(0, _t - _d1 - _d2) || '';
   document.getElementById('jf-account').value = j.account||'';
   document.getElementById('jf-stage').value = j.stage||'';
   document.getElementById('jf-notes').value = j.notes||'';
@@ -2392,7 +2403,7 @@ function saveJob() {
     total: parseFloat(document.getElementById('jf-total').value)||0,
     dep1: parseFloat(document.getElementById('jf-dep1').value)||0,
     dep2: parseFloat(document.getElementById('jf-dep2').value)||0,
-    balance: parseFloat(document.getElementById('jf-balance').value)||0,
+    balance: Math.max(0, (parseFloat(document.getElementById('jf-total').value)||0) - (parseFloat(document.getElementById('jf-dep1').value)||0) - (parseFloat(document.getElementById('jf-dep2').value)||0)),
     account: document.getElementById('jf-account').value,
     stage: document.getElementById('jf-stage').value,
     notes: document.getElementById('jf-notes').value.trim(),
