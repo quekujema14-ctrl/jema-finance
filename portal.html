@@ -422,6 +422,19 @@ document.getElementById('gen-date').value  = today();
 // ── GOOGLE AUTH ───────────────────────────────────────────────────────────────
 function initAuth() {
   if (typeof google === 'undefined' || !google.accounts) { setTimeout(initAuth, 500); return; }
+
+  // Restore token from sessionStorage — skip re-connect if still valid
+  const stored    = sessionStorage.getItem('jema_portal_gtoken');
+  const storedExp = parseInt(sessionStorage.getItem('jema_portal_gtoken_exp') || '0');
+  if (stored && storedExp > Date.now()) {
+    gToken = stored; gTokenExpiry = storedExp;
+    document.getElementById('sync-dot').classList.add('connected');
+    document.getElementById('sync-label').textContent = 'Connected';
+    document.getElementById('state-connect').classList.add('hidden');
+    loadLists(); loadTeamMembers(); loadJobs();
+    return;
+  }
+
   gTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID, scope: SHEETS_SCOPE,
     callback: onToken
@@ -430,13 +443,25 @@ function initAuth() {
   document.getElementById('connect-btn').disabled = false;
 }
 function handleConnect() {
-  // Try silent first
+  if (!gTokenClient) { showToast('Auth not ready — please wait a moment'); return; }
+  // Try silent first; if it fails onToken handles the fallback
   gTokenClient.requestAccessToken({ prompt: '' });
 }
 function onToken(resp) {
-  if (resp.error) { showToast('Auth failed: ' + resp.error); return; }
+  if (resp.error) {
+    // Silent auth failed (common on mobile) — try with full prompt
+    if (resp.error === 'interaction_required' || resp.error === 'access_denied') {
+      gTokenClient.requestAccessToken({ prompt: 'consent' });
+      return;
+    }
+    showToast('Auth failed: ' + resp.error);
+    return;
+  }
   gToken = resp.access_token;
   gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
+  // Persist token so refresh / backgrounding on mobile doesn't require re-connect
+  sessionStorage.setItem('jema_portal_gtoken', gToken);
+  sessionStorage.setItem('jema_portal_gtoken_exp', String(gTokenExpiry));
   document.getElementById('sync-dot').classList.add('connected');
   document.getElementById('sync-label').textContent = 'Connected';
   document.getElementById('state-connect').classList.add('hidden');
@@ -444,17 +469,52 @@ function onToken(resp) {
   loadTeamMembers();
   loadJobs();
 }
+function resetAuth() {
+  gToken = null; gTokenExpiry = 0;
+  sessionStorage.removeItem('jema_portal_gtoken');
+  sessionStorage.removeItem('jema_portal_gtoken_exp');
+  document.getElementById('sync-dot').classList.remove('connected');
+  document.getElementById('sync-label').textContent = 'Not connected';
+  document.getElementById('state-connect').classList.remove('hidden');
+  document.getElementById('state-select').classList.add('hidden');
+  document.getElementById('state-budget').classList.add('hidden');
+  document.getElementById('state-log').classList.add('hidden');
+  document.getElementById('state-recent').classList.add('hidden');
+  const sel = document.getElementById('project-select');
+  sel.innerHTML = '<option value="">— choose a project —</option>';
+  allJobs = []; selectedJob = null;
+}
 
 // ── API HELPERS ───────────────────────────────────────────────────────────────
+function ensureToken() {
+  // If token is expired or missing, reset and ask user to reconnect
+  if (!gToken || Date.now() >= gTokenExpiry) {
+    resetAuth();
+    showToast('Session expired — please reconnect your Google account');
+    throw new Error('token_expired');
+  }
+}
 async function gGet(range) {
+  ensureToken();
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
   const r = await fetch(url, { headers: { Authorization: 'Bearer ' + gToken } });
+  if (r.status === 401 || r.status === 403) {
+    resetAuth();
+    showToast('Access expired — tap Connect to sign in again (use quekujema14@gmail.com)');
+    throw new Error('auth_expired');
+  }
   if (!r.ok) throw new Error('GET failed: ' + r.status);
   return r.json();
 }
 async function gAppend(sheet, values) {
+  ensureToken();
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheet)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const r = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: JSON.stringify({ values }) });
+  if (r.status === 401 || r.status === 403) {
+    resetAuth();
+    showToast('Access expired — tap Connect to sign in again (use quekujema14@gmail.com)');
+    throw new Error('auth_expired');
+  }
   if (!r.ok) throw new Error('Append failed: ' + r.status);
   return r.json();
 }
@@ -567,7 +627,7 @@ async function loadJobs() {
       sel.appendChild(opt);
     });
     document.getElementById('state-select').classList.remove('hidden');
-  } catch(e) { showToast('Error loading jobs: ' + e.message); }
+  } catch(e) { if (e.message !== 'token_expired' && e.message !== 'auth_expired') showToast('Error loading jobs: ' + e.message); }
 }
 
 // ── PROJECT SELECTED ──────────────────────────────────────────────────────────
