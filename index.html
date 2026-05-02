@@ -1147,21 +1147,30 @@ function initGoogleSync() {
   setSyncUI('disconnected', 'Not Connected');
 }
 
+function handleSyncBtn() {
+  if (gToken && gTokenExpiry > Date.now()) { pullFromSheets(); return; }
+  if (!gClientId) { openModal('setup-modal'); return; }
+  if (!gTokenClient) { alert('Google Sign-In is still loading — try again in a moment.'); return; }
+  // Try silent first; fall back to consent prompt if no cached session (common on mobile)
+  gTokenClient.requestAccessToken({ prompt: '' });
+}
+
 function onTokenResponse(resp) {
-  if (resp.error) { setSyncUI('error', 'Auth Failed · ' + resp.error); return; }
+  if (resp.error) {
+    if (resp.error === 'interaction_required' || resp.error === 'access_denied') {
+      // Silent auth failed — retry with explicit consent prompt
+      gTokenClient.requestAccessToken({ prompt: 'consent' });
+      return;
+    }
+    setSyncUI('error', 'Auth Failed · ' + resp.error);
+    return;
+  }
   gToken = resp.access_token;
   gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
   sessionStorage.setItem('jema_gtoken', gToken);
   sessionStorage.setItem('jema_gtoken_exp', String(gTokenExpiry));
   setSyncUI('connected', 'Sheets Connected');
   pullFromSheets();
-}
-
-function handleSyncBtn() {
-  if (gToken && gTokenExpiry > Date.now()) { pullFromSheets(); return; }
-  if (!gClientId) { openModal('setup-modal'); return; }
-  if (!gTokenClient) { alert('Google Sign-In is still loading — try again in a moment.'); return; }
-  gTokenClient.requestAccessToken({ prompt: '' });
 }
 
 // ─── API helpers ──────────────────────────────────────────────────────────
@@ -1724,63 +1733,7 @@ function exportJobsPDF() {
       <tbody>${rows}</tbody>
     </table>
     <div class="footer">JEMA Financial System 2026 · Exported ${now}</div>
-  
-<!-- ===== MOBILE BOTTOM NAV ===== -->
-<nav class="mob-nav">
-  <div class="mob-nav-inner">
-    <button class="mob-nav-btn active" id="mob-btn-dashboard" onclick="showTab('dashboard');setMobActive('dashboard')">
-      <span class="icon">📊</span>Dashboard
-    </button>
-    <button class="mob-nav-btn" id="mob-btn-jobs" onclick="showTab('jobs');setMobActive('jobs')">
-      <span class="icon">📋</span>Jobs
-    </button>
-    <button class="mob-nav-btn" id="mob-btn-expenses" onclick="showTab('expenses');setMobActive('expenses')">
-      <span class="icon">💳</span>Expenses
-    </button>
-    <button class="mob-nav-btn" id="mob-btn-payroll" onclick="showTab('payroll');setMobActive('payroll')">
-      <span class="icon">👥</span>Payroll
-    </button>
-    <button class="mob-nav-btn" id="mob-btn-reports" onclick="showTab('reports');setMobActive('reports')">
-      <span class="icon">📈</span>Reports
-    </button>
-  </div>
-</nav>
-
-<!-- FAB -->
-<button class="fab" onclick="openQuickLog()" title="Quick Log Expense">+</button>
-
-<!-- ===== QUICK-LOG DRAWER ===== -->
-<div class="drawer-overlay" id="quick-drawer" onclick="closeQuickDrawerOutside(event)">
-  <div class="drawer">
-    <div class="drawer-handle"></div>
-    <div class="drawer-title">⚡ Quick Log Expense</div>
-    <div class="drawer-fields">
-      <div class="form-group">
-        <label>Category</label>
-        <select id="ql-category">
-          <option value="">Select Category</option>
-        </select>
-      </div>
-      <div class="drawer-row">
-        <div class="form-group">
-          <label>Amount ($)</label>
-          <input type="number" id="ql-amount" placeholder="0.00" inputmode="decimal">
-        </div>
-        <div class="form-group">
-          <label>Date</label>
-          <input type="date" id="ql-date">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Note <span style="font-size:10px;color:var(--text-muted)">(optional)</span></label>
-        <input type="text" id="ql-note" placeholder="What was this for?">
-      </div>
-    </div>
-    <button class="drawer-btn" onclick="saveQuickLog()">Log Expense</button>
-  </div>
-</div>
-
-</body></html>`);
+  </body></html>`);
   w.document.close();
   setTimeout(() => w.print(), 500);
 }
@@ -1831,63 +1784,7 @@ function exportReportPDF() {
       <tbody>${rows}</tbody>
     </table>
     <div class="footer">JEMA Financial System 2026 · Exported ${now}</div>
-  
-<!-- ===== MOBILE BOTTOM NAV ===== -->
-<nav class="mob-nav">
-  <div class="mob-nav-inner">
-    <button class="mob-nav-btn active" id="mob-btn-dashboard" onclick="showTab('dashboard');setMobActive('dashboard')">
-      <span class="icon">📊</span>Dashboard
-    </button>
-    <button class="mob-nav-btn" id="mob-btn-jobs" onclick="showTab('jobs');setMobActive('jobs')">
-      <span class="icon">📋</span>Jobs
-    </button>
-    <button class="mob-nav-btn" id="mob-btn-expenses" onclick="showTab('expenses');setMobActive('expenses')">
-      <span class="icon">💳</span>Expenses
-    </button>
-    <button class="mob-nav-btn" id="mob-btn-payroll" onclick="showTab('payroll');setMobActive('payroll')">
-      <span class="icon">👥</span>Payroll
-    </button>
-    <button class="mob-nav-btn" id="mob-btn-reports" onclick="showTab('reports');setMobActive('reports')">
-      <span class="icon">📈</span>Reports
-    </button>
-  </div>
-</nav>
-
-<!-- FAB -->
-<button class="fab" onclick="openQuickLog()" title="Quick Log Expense">+</button>
-
-<!-- ===== QUICK-LOG DRAWER ===== -->
-<div class="drawer-overlay" id="quick-drawer" onclick="closeQuickDrawerOutside(event)">
-  <div class="drawer">
-    <div class="drawer-handle"></div>
-    <div class="drawer-title">⚡ Quick Log Expense</div>
-    <div class="drawer-fields">
-      <div class="form-group">
-        <label>Category</label>
-        <select id="ql-category">
-          <option value="">Select Category</option>
-        </select>
-      </div>
-      <div class="drawer-row">
-        <div class="form-group">
-          <label>Amount ($)</label>
-          <input type="number" id="ql-amount" placeholder="0.00" inputmode="decimal">
-        </div>
-        <div class="form-group">
-          <label>Date</label>
-          <input type="date" id="ql-date">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Note <span style="font-size:10px;color:var(--text-muted)">(optional)</span></label>
-        <input type="text" id="ql-note" placeholder="What was this for?">
-      </div>
-    </div>
-    <button class="drawer-btn" onclick="saveQuickLog()">Log Expense</button>
-  </div>
-</div>
-
-</body></html>`);
+  </body></html>`);
   w.document.close();
   setTimeout(() => w.print(), 500);
 }
@@ -2520,14 +2417,14 @@ function saveJob() {
     jobs.push(data);
   }
   saveData(); populateSelects();
-  renderJobs(); renderJobStats(); refreshDashboard();
+  filterJobs(); renderJobStats(); refreshDashboard();
   closeModal('job-modal');
 }
 
 function deleteJob(id) {
   if (!confirm('Delete this job?')) return;
   jobs = jobs.filter(j=>j.id!==id);
-  saveData(); renderJobs(); renderJobStats(); refreshDashboard();
+  saveData(); filterJobs(); renderJobStats(); refreshDashboard();
 }
 
 // ===================== EXPENSES =====================
@@ -2639,14 +2536,14 @@ function saveExpense() {
     data.id = nextExpId++;
     expenses.push(data);
   }
-  saveData(); renderExpenses(); renderExpStats(); refreshDashboard();
+  saveData(); filterExpenses(); renderExpStats(); refreshDashboard();
   closeModal('expense-modal');
 }
 
 function deleteExpense(id) {
   if (!confirm('Delete this expense?')) return;
   expenses = expenses.filter(e=>e.id!==id);
-  saveData(); renderExpenses(); renderExpStats(); refreshDashboard();
+  saveData(); filterExpenses(); renderExpStats(); refreshDashboard();
 }
 
 // ===================== PAYROLL =====================
@@ -2737,14 +2634,14 @@ function savePayroll() {
     data.id = nextPayId++;
     payroll.push(data);
   }
-  saveData(); renderPayroll(); renderPayStats(); refreshDashboard();
+  saveData(); filterPayroll(); renderPayStats(); refreshDashboard();
   closeModal('payroll-modal');
 }
 
 function deletePayroll(id) {
   if (!confirm('Delete this entry?')) return;
   payroll = payroll.filter(p=>p.id!==id);
-  saveData(); renderPayroll(); renderPayStats(); refreshDashboard();
+  saveData(); filterPayroll(); renderPayStats(); refreshDashboard();
 }
 
 // ===================== TEAM =====================
@@ -2820,7 +2717,7 @@ function buildReport() {
   // Build per-project costs
   const projectData = {};
   jobs.forEach(j => {
-    projectData[j.client] = { revenue: fmtN(j.total), payroll: 0, expenses: 0 };
+    projectData[j.client] = { revenue: fmtN(j.total), payroll: 0, expenses: 0, budgetCapPct: (j.budget_cap && j.budget_cap > 0) ? j.budget_cap : 35 };
   });
   payroll.forEach(p => {
     if (p.project && projectData[p.project]) projectData[p.project].payroll += fmtN(p.amount);
@@ -2834,7 +2731,7 @@ function buildReport() {
     const totalCost = d.payroll + d.expenses;
     const profit = d.revenue - totalCost;
     const margin = d.revenue > 0 ? profit / d.revenue : 0;
-    const budgetCap = d.revenue * 0.35;
+    const budgetCap = d.revenue * ((d.budgetCapPct || 35) / 100);
     const budgetUsedPct = budgetCap > 0 ? totalCost / budgetCap : 0;
     let budgetStatus, budgetClass;
     if (budgetUsedPct > 1.0)  { budgetStatus = '🚨 Over Budget'; budgetClass = 'bst-over'; }
@@ -2999,7 +2896,7 @@ function saveQuickLog() {
   const entry = {
     id: nextExpId++,
     date, category: cat, amount, payment: '', project: '', desc: note,
-    receipt: 'No', notes: '⚡ Quick Log'
+    receipt: 'Pending', notes: '⚡ Quick Log'
   };
   expenses.push(entry);
   localStorage.setItem('jema_expenses', JSON.stringify(expenses));
