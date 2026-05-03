@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JEMA Studios – Production Portal</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     --gold: #C9A84C; --gold-light: #E8C96A; --gold-dark: #A07C2D;
@@ -169,10 +168,9 @@
 
   <!-- ── CONNECT STATE ── -->
   <div id="state-connect" class="card connect-state">
-    <div class="connect-icon">🔗</div>
-    <div class="connect-title">Connect to get started</div>
-    <div class="connect-sub">Sign in with your Google account to access<br>your project budget and log expenses.</div>
-    <button class="btn-connect" id="connect-btn" onclick="handleConnect()" disabled>⏳ Loading…</button>
+    <div class="connect-icon">⏳</div>
+    <div class="connect-title">Loading portal…</div>
+    <div class="connect-sub">Connecting to JEMA Finance Operations Hub.</div>
   </div>
 
   <!-- ── PROJECT SELECTOR ── -->
@@ -398,20 +396,15 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CONFIG (same sheet as main system) ───────────────────────────────────────
-const SPREADSHEET_ID = '1Vi9UYob4V-WP8Xgv9W2uyqsNaSaZsIxjbLReQ4ZNlpo';
-const SHEETS_SCOPE   = 'https://www.googleapis.com/auth/spreadsheets';
-const CLIENT_ID      = '304894248307-ohshubs8o36kksgqlbbr8q0doe1b695k.apps.googleusercontent.com';
-const SHEET_JOBS     = 'MASTER_JOBS_2026';
-const SHEET_EXP      = 'EXPENSES_2026';
-const SHEET_PAY      = 'TEAM_PAYROLL_2026';
-const SHEET_TEAM     = 'TEAM';
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+// After deploying portalProxy.gs as a Web App, paste the URL below:
+const PROXY_URL = 'YOUR_WEB_APP_URL_HERE';
+const API_KEY   = 'jema-portal-2026';
 
-let gToken = null, gTokenExpiry = 0, gTokenClient = null;
 let allJobs = [], projectExpenses = [], projectPayroll = [];
 let selectedJob = null;
-let LISTS = {}; // populated from LISTS sheet
-const fmt = n => '$' + Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+let LISTS = {};
+const fmt   = n => '$' + Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 const today = () => new Date().toISOString().slice(0,10);
 
 // ── SET DEFAULTS ─────────────────────────────────────────────────────────────
@@ -419,116 +412,45 @@ document.getElementById('pay-date').value  = today();
 document.getElementById('proj-date').value = today();
 document.getElementById('gen-date').value  = today();
 
-// ── GOOGLE AUTH ───────────────────────────────────────────────────────────────
-function initAuth() {
-  if (typeof google === 'undefined' || !google.accounts) { setTimeout(initAuth, 500); return; }
-
-  // Restore token from sessionStorage — skip re-connect if still valid
-  const stored    = sessionStorage.getItem('jema_portal_gtoken');
-  const storedExp = parseInt(sessionStorage.getItem('jema_portal_gtoken_exp') || '0');
-  if (stored && storedExp > Date.now()) {
-    gToken = stored; gTokenExpiry = storedExp;
-    document.getElementById('sync-dot').classList.add('connected');
-    document.getElementById('sync-label').textContent = 'Connected';
-    document.getElementById('state-connect').classList.add('hidden');
-    loadLists(); loadTeamMembers(); loadJobs();
-    return;
-  }
-
-  gTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID, scope: SHEETS_SCOPE,
-    callback: onToken
+// ── PROXY HELPERS ─────────────────────────────────────────────────────────────
+async function proxyGet(action, extra) {
+  const params = new URLSearchParams({ key: API_KEY, action, ...(extra||{}) });
+  const r = await fetch(PROXY_URL + '?' + params.toString());
+  if (!r.ok) throw new Error('Request failed: ' + r.status);
+  const data = await r.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+async function proxyPost(action, payload) {
+  const r = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: API_KEY, action, data: payload })
   });
-  document.getElementById('connect-btn').textContent = '🔗 Connect Google Account';
-  document.getElementById('connect-btn').disabled = false;
-}
-function handleConnect() {
-  if (!gTokenClient) { showToast('Auth not ready — please wait a moment'); return; }
-  // Try silent first; if it fails onToken handles the fallback
-  gTokenClient.requestAccessToken({ prompt: '' });
-}
-function onToken(resp) {
-  if (resp.error) {
-    // Silent auth failed (common on mobile) — try with full prompt
-    if (resp.error === 'interaction_required' || resp.error === 'access_denied') {
-      gTokenClient.requestAccessToken({ prompt: 'consent' });
-      return;
-    }
-    showToast('Auth failed: ' + resp.error);
-    return;
-  }
-  gToken = resp.access_token;
-  gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
-  // Persist token so refresh / backgrounding on mobile doesn't require re-connect
-  sessionStorage.setItem('jema_portal_gtoken', gToken);
-  sessionStorage.setItem('jema_portal_gtoken_exp', String(gTokenExpiry));
-  document.getElementById('sync-dot').classList.add('connected');
-  document.getElementById('sync-label').textContent = 'Connected';
-  document.getElementById('state-connect').classList.add('hidden');
-  loadLists();
-  loadTeamMembers();
-  loadJobs();
-}
-function resetAuth() {
-  gToken = null; gTokenExpiry = 0;
-  sessionStorage.removeItem('jema_portal_gtoken');
-  sessionStorage.removeItem('jema_portal_gtoken_exp');
-  document.getElementById('sync-dot').classList.remove('connected');
-  document.getElementById('sync-label').textContent = 'Not connected';
-  document.getElementById('state-connect').classList.remove('hidden');
-  document.getElementById('state-select').classList.add('hidden');
-  document.getElementById('state-budget').classList.add('hidden');
-  document.getElementById('state-log').classList.add('hidden');
-  document.getElementById('state-recent').classList.add('hidden');
-  const sel = document.getElementById('project-select');
-  sel.innerHTML = '<option value="">— choose a project —</option>';
-  allJobs = []; selectedJob = null;
+  if (!r.ok) throw new Error('Request failed: ' + r.status);
+  const data = await r.json();
+  if (data.error) throw new Error(data.error);
+  return data;
 }
 
-// ── API HELPERS ───────────────────────────────────────────────────────────────
-function ensureToken() {
-  // If token is expired or missing, reset and ask user to reconnect
-  if (!gToken || Date.now() >= gTokenExpiry) {
-    resetAuth();
-    showToast('Session expired — please reconnect your Google account');
-    throw new Error('token_expired');
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function initPortal() {
+  if (!PROXY_URL || PROXY_URL === 'YOUR_WEB_APP_URL_HERE') {
+    showToast('⚠️ Proxy URL not configured — see setup instructions');
+    return;
   }
-}
-async function gGet(range) {
-  ensureToken();
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
-  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + gToken } });
-  if (r.status === 401 || r.status === 403) {
-    resetAuth();
-    showToast('Access expired — tap Connect to sign in again');
-    throw new Error('auth_expired');
-  }
-  if (!r.ok) throw new Error('GET failed: ' + r.status);
-  return r.json();
-}
-async function gAppend(sheet, values) {
-  ensureToken();
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheet)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-  const r = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: JSON.stringify({ values }) });
-  if (r.status === 401 || r.status === 403) {
-    resetAuth();
-    showToast('Access expired — tap Connect to sign in again');
-    throw new Error('auth_expired');
-  }
-  if (!r.ok) throw new Error('Append failed: ' + r.status);
-  return r.json();
+  document.getElementById('sync-dot').classList.add('connected');
+  document.getElementById('sync-label').textContent = 'Live';
+  document.getElementById('state-connect').classList.add('hidden');
+  await Promise.all([ loadLists(), loadTeamMembers(), loadJobs() ]);
 }
 
 // ── LOAD LISTS (dynamic dropdowns) ───────────────────────────────────────────
 async function loadLists() {
   try {
-    const data = await gGet('LISTS!A1:Z100');
-    const rows = data.values || [];
-    if (!rows.length) return;
-    const headers = rows[0];
-    headers.forEach((h, ci) => {
-      LISTS[h] = rows.slice(1).map(r => (r[ci]||'').trim()).filter(v => v);
-    });
+    const data = await proxyGet('getLists');
+    LISTS = data.lists || {};
+    if (!Object.keys(LISTS).length) return;
 
     // Helper to populate a <select> from a LISTS key, keeping placeholder
     const fill = (id, key) => {
@@ -581,44 +503,23 @@ async function loadLists() {
 // ── LOAD TEAM MEMBERS ────────────────────────────────────────────────────────
 async function loadTeamMembers() {
   try {
-    const data = await gGet(SHEET_TEAM + '!A:E');
-    const rows = (data.values || []).slice(1); // skip header
-    const members = rows
-      .filter(r => (r[2]||'').trim().toLowerCase() === 'active' && (r[0]||'').trim())
-      .map(r => r[0].trim());
-
+    const data = await proxyGet('getTeam');
+    const members = data.members || [];
     const sel = document.getElementById('pay-member');
-    // Clear existing options except the placeholder
     sel.innerHTML = '<option value="">Select member</option>';
     members.forEach(name => {
       const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
+      opt.value = name; opt.textContent = name;
       sel.appendChild(opt);
     });
-  } catch(e) {
-    console.warn('Could not load team members:', e.message);
-  }
+  } catch(e) { console.warn('Could not load team members:', e.message); }
 }
 
 // ── LOAD JOBS ─────────────────────────────────────────────────────────────────
 async function loadJobs() {
   try {
-    // Cols: \, Client, Day, Month, Year, Location, Package, Total, Dep1, Dep2, Balance, Account, Stage, Notes, BudgetCap
-    const data = await gGet(SHEET_JOBS + '!A:O');
-    const rows = (data.values || []).slice(1); // skip header
-    // Only show active jobs (Awaiting Event)
-    const parseNum = v => parseFloat(String(v||'').replace(/,/g,'')) || 0;
-    allJobs = rows
-      .filter(r => (r[12]||'').trim() === 'Awaiting Event')
-      .map(r => ({
-        invoice: r[0]||'', client: r[1]||'', day: r[2]||'', month: r[3]||'',
-        year: r[4]||'', location: r[5]||'', pkg: r[6]||'',
-        total: parseNum(r[7]),
-        budget_cap: parseNum(r[14]),
-        stage: r[12]||''
-      }));
-
+    const data = await proxyGet('getJobs');
+    allJobs = data.jobs || [];
     const sel = document.getElementById('project-select');
     allJobs.forEach((j,i) => {
       const opt = document.createElement('option');
@@ -627,7 +528,7 @@ async function loadJobs() {
       sel.appendChild(opt);
     });
     document.getElementById('state-select').classList.remove('hidden');
-  } catch(e) { if (e.message !== 'token_expired' && e.message !== 'auth_expired') showToast('Error loading jobs: ' + e.message); }
+  } catch(e) { showToast('Error loading jobs: ' + e.message); }
 }
 
 // ── PROJECT SELECTED ──────────────────────────────────────────────────────────
@@ -649,17 +550,12 @@ async function loadProjectData() {
     const capPct = selectedJob.budget_cap > 0 ? selectedJob.budget_cap : 35;
     const capAmt = selectedJob.total * (capPct / 100);
 
-    // Load expenses for this project
-    const expData = await gGet(SHEET_EXP + '!A:H');
-    const expRows = (expData.values || []).slice(1);
-    projectExpenses = expRows.filter(r => (r[4]||'').trim() === selectedJob.client.trim());
-    const totalExp = projectExpenses.reduce((s,r) => s + (parseFloat(r[2])||0), 0);
-
-    // Load payroll for this project
-    const payData = await gGet(SHEET_PAY + '!A:G');
-    const payRows = (payData.values || []).slice(1);
-    projectPayroll = payRows.filter(r => (r[1]||'').trim() === selectedJob.client.trim());
-    const totalPay = projectPayroll.reduce((s,r) => s + (parseFloat(r[5])||0), 0);
+    // Load expenses + payroll via proxy (already filtered by client)
+    const data = await proxyGet('getProjectData', { client: selectedJob.client });
+    projectExpenses = data.expenses || [];
+    projectPayroll  = data.payroll  || [];
+    const totalExp = projectExpenses.reduce((s,r) => s + (r.amount||0), 0);
+    const totalPay = projectPayroll.reduce((s,r)  => s + (r.amount||0), 0);
 
     const totalSpent = totalExp + totalPay;
     const remaining  = capAmt - totalSpent;
@@ -693,11 +589,8 @@ async function loadProjectData() {
 function renderRecent() {
   const listEl = document.getElementById('entry-list');
   const combined = [
-    ...projectPayroll.map(r => ({ type:'payroll', label: r[2]||'Team Member', sub: r[3]||'', date: r[0]||'', amount: parseFloat(r[5])||0 })),
-    ...projectExpenses.map(r => {
-      const isGeneral = !r[4] || r[4].trim() === '';
-      return { type: isGeneral ? 'general' : 'expense', label: r[1]||'Expense', sub: r[5]||'', date: r[0]||'', amount: parseFloat(r[2])||0 };
-    })
+    ...projectPayroll.map(r  => ({ type:'payroll',  label: r.member||'Team Member', sub: r.role||'',    date: String(r.date||''), amount: r.amount||0 })),
+    ...projectExpenses.map(r => ({ type:'expense',   label: r.category||'Expense',   sub: r.desc||'',    date: String(r.date||''), amount: r.amount||0 }))
   ].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 12);
 
   document.getElementById('recent-project-name').textContent = selectedJob.client;
@@ -741,8 +634,7 @@ async function submitPayroll() {
   const btn = document.querySelector('#form-payroll .btn-submit');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
   try {
-    // payroll cols: Date_Paid, Project_Tag, Team_Member, Role, Payment_Method, Amount, Notes
-    await gAppend(SHEET_PAY, [[date, selectedJob.client, member, role, method, amount, notes]]);
+    await proxyPost('appendPayroll', { date, project: selectedJob.client, member, role, method, amount, notes });
     showToast('✅ Payroll entry saved!');
     document.getElementById('pay-amount').value = '';
     document.getElementById('pay-notes').value  = '';
@@ -764,8 +656,7 @@ async function submitProjectExpense() {
   const btn = document.querySelector('#form-project .btn-submit');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
   try {
-    // expenses cols: Date, Category, Amount, Payment_Method, Project_Tag, Description, Receipt_Attached, Notes
-    await gAppend(SHEET_EXP, [[date, category, amount, method, selectedJob.client, desc, receipt, '']]);
+    await proxyPost('appendExpense', { date, category, amount, method, project: selectedJob.client, desc, receipt });
     showToast('✅ Project expense saved!');
     document.getElementById('proj-amount').value = '';
     document.getElementById('proj-desc').value   = '';
@@ -786,8 +677,7 @@ async function submitGeneralExpense() {
   const btn = document.querySelector('#form-general .btn-submit');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
   try {
-    // General expense: no project tag
-    await gAppend(SHEET_EXP, [[date, category, amount, method, '', desc, receipt, '']]);
+    await proxyPost('appendExpense', { date, category, amount, method, project: '', desc, receipt });
     showToast('✅ General expense saved!');
     document.getElementById('gen-amount').value = '';
     document.getElementById('gen-desc').value   = '';
@@ -803,7 +693,7 @@ function showToast(msg) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-setTimeout(initAuth, 600);
+initPortal();
 </script>
 </body>
 </html>
