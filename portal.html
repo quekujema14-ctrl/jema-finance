@@ -500,7 +500,7 @@ async function gGet(range) {
   const r = await fetch(url, { headers: { Authorization: 'Bearer ' + gToken } });
   if (r.status === 401 || r.status === 403) {
     resetAuth();
-    showToast('Access expired — tap Connect to sign in again (use quekujema14@gmail.com)');
+    showToast('Access expired — tap Connect to sign in again');
     throw new Error('auth_expired');
   }
   if (!r.ok) throw new Error('GET failed: ' + r.status);
@@ -512,7 +512,7 @@ async function gAppend(sheet, values) {
   const r = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: JSON.stringify({ values }) });
   if (r.status === 401 || r.status === 403) {
     resetAuth();
-    showToast('Access expired — tap Connect to sign in again (use quekujema14@gmail.com)');
+    showToast('Access expired — tap Connect to sign in again');
     throw new Error('auth_expired');
   }
   if (!r.ok) throw new Error('Append failed: ' + r.status);
