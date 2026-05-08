@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JEMA Studios – Financial System 2026</title>
+<meta name="description" content="JEMA Studios internal financial system: bookings, expenses, payroll, and budget reports synced with Google Sheets.">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1A2744">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23C9A84C'/%3E%3Ctext x='50' y='62' font-size='44' font-weight='800' text-anchor='middle' fill='%23fff' font-family='system-ui'%3EJ%3C/text%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
@@ -467,6 +471,16 @@
 </head>
 <body>
 
+<noscript>
+  <div style="padding:32px;text-align:center;font-family:system-ui,sans-serif;color:#1A2744">
+    <h1 style="font-size:20px;margin-bottom:12px">JavaScript required</h1>
+    <p style="color:#6b7a8d;font-size:14px;line-height:1.5">
+      JEMA Financial System uses JavaScript to sync with Google Sheets.<br>
+      Please enable JavaScript in your browser to continue.
+    </p>
+  </div>
+</noscript>
+
 <header class="app-header">
   <div class="logo">
     <img src="data:image/png;base64,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" alt="JEMA Studios" style="width:42px;height:42px;object-fit:contain;border-radius:8px;box-shadow:3px 3px 8px rgba(201,168,76,0.3);" />
@@ -482,12 +496,12 @@
 </header>
 
 <nav class="nav-bar">
-  <button class="nav-btn active" onclick="showTab('dashboard')">📊 Dashboard</button>
-  <button class="nav-btn" onclick="showTab('jobs')">📋 Master Jobs</button>
-  <button class="nav-btn" onclick="showTab('expenses')">💳 Expenses</button>
-  <button class="nav-btn" onclick="showTab('payroll')">👥 Team Payroll</button>
-  <button class="nav-btn" onclick="showTab('team')">🤝 Team</button>
-  <button class="nav-btn" onclick="showTab('reports')">📈 Reports</button>
+  <button class="nav-btn active" onclick="showTab('dashboard', event)">📊 Dashboard</button>
+  <button class="nav-btn" onclick="showTab('jobs', event)">📋 Master Jobs</button>
+  <button class="nav-btn" onclick="showTab('expenses', event)">💳 Expenses</button>
+  <button class="nav-btn" onclick="showTab('payroll', event)">👥 Team Payroll</button>
+  <button class="nav-btn" onclick="showTab('team', event)">🤝 Team</button>
+  <button class="nav-btn" onclick="showTab('reports', event)">📈 Reports</button>
 </nav>
 
 <main class="main">
@@ -1088,7 +1102,18 @@ const FIELD_ORDER = {
 };
 
 // ===================== SYNC STATE =====================
-let gClientId    = '304894248307-ohshubs8o36kksgqlbbr8q0doe1b695k.apps.googleusercontent.com';
+// Audit H1 (May 2026): the ⚙️ Setup modal saves a custom Client ID to
+// localStorage but the previous init never read it back — every reload
+// reverted to the hardcoded fallback. Now we prefer the stored value when
+// present, with the hardcoded ID as a default for first-time users.
+const _DEFAULT_CLIENT_ID = '304894248307-ohshubs8o36kksgqlbbr8q0doe1b695k.apps.googleusercontent.com';
+let gClientId    = (function () {
+  try {
+    const saved = localStorage.getItem('jema_client_id');
+    if (saved && saved.includes('.apps.googleusercontent.com')) return saved;
+  } catch (e) { /* private mode etc. — fall through to default */ }
+  return _DEFAULT_CLIENT_ID;
+})();
 let gTokenClient = null;
 let gToken       = null;
 let gTokenExpiry = 0;
@@ -1128,7 +1153,7 @@ function initGoogleSync() {
 
   // Restore session token
   const stored = sessionStorage.getItem('jema_gtoken');
-  const storedExp = parseInt(sessionStorage.getItem('jema_gtoken_exp') || '0');
+  const storedExp = parseInt(sessionStorage.getItem('jema_gtoken_exp') || '0', 10); // M8
   if (stored && storedExp > Date.now()) {
     gToken = stored; gTokenExpiry = storedExp;
     setSyncUI('connected', 'Sheets Connected');
@@ -1174,32 +1199,74 @@ function onTokenResponse(resp) {
 }
 
 // ─── API helpers ──────────────────────────────────────────────────────────
+// Audit H2 (May 2026): tokens expire after ~1 hour. Previously, any API call
+// that hit a 401 just bubbled the error up; the user had to click Connect
+// Sheets again and lost any in-flight save. Now every API call goes through
+// _gFetch(), which on 401 silently re-requests an access token and retries
+// once. If the silent re-auth fails, the original error bubbles as before.
+let _refreshInFlight = null;
+function _refreshToken() {
+  if (_refreshInFlight) return _refreshInFlight;
+  if (!gTokenClient) return Promise.reject(new Error('No tokenClient'));
+  _refreshInFlight = new Promise((resolve, reject) => {
+    const prevCallback = gTokenClient.callback;
+    gTokenClient.callback = function (resp) {
+      gTokenClient.callback = prevCallback; // restore
+      if (resp.error) { reject(new Error('reauth: ' + resp.error)); return; }
+      gToken = resp.access_token;
+      gTokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
+      try {
+        sessionStorage.setItem('jema_gtoken', gToken);
+        sessionStorage.setItem('jema_gtoken_exp', String(gTokenExpiry));
+      } catch (e) {}
+      resolve();
+    };
+    try { gTokenClient.requestAccessToken({ prompt: '' }); }
+    catch (e) { reject(e); }
+  }).finally(() => { _refreshInFlight = null; });
+  return _refreshInFlight;
+}
+
+async function _gFetch(url, opts, label) {
+  const doFetch = () => fetch(url, {
+    ...opts,
+    headers: { ...(opts && opts.headers), Authorization: 'Bearer ' + gToken }
+  });
+  let r = await doFetch();
+  if (r.status === 401) {
+    try { await _refreshToken(); r = await doFetch(); }
+    catch (e) { /* fall through to throw below */ }
+  }
+  if (!r.ok) throw new Error(label + ' → ' + r.status);
+  return r.json();
+}
+
 async function gGet(range) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
-  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + gToken } });
-  if (!r.ok) throw new Error('GET ' + range + ' → ' + r.status);
-  return r.json();
+  return _gFetch(url, {}, 'GET ' + range);
 }
 
 async function gPut(range, values) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
-  const r = await fetch(url, { method:'PUT', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: JSON.stringify({ values }) });
-  if (!r.ok) throw new Error('PUT ' + range + ' → ' + r.status);
-  return r.json();
+  return _gFetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values })
+  }, 'PUT ' + range);
 }
 
 async function gClear(range) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}:clear`;
-  const r = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+gToken } });
-  if (!r.ok) throw new Error('CLEAR ' + range + ' → ' + r.status);
-  return r.json();
+  return _gFetch(url, { method: 'POST' }, 'CLEAR ' + range);
 }
 
 async function gBatchUpdate(requests) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`;
-  const r = await fetch(url, { method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: JSON.stringify({ requests }) });
-  if (!r.ok) throw new Error('batchUpdate → ' + r.status);
-  return r.json();
+  return _gFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests })
+  }, 'batchUpdate');
 }
 
 // Run once per session to strip leftover Excel data-validation from Project_Tag columns
@@ -1285,7 +1352,7 @@ function rowsToObjs(type, rawRows) {
         if (!field) return;
         let val = (row[ci] !== undefined && row[ci] !== null) ? row[ci] : '';
         if (numFields.has(field)) val = parseFloat(String(val).replace(/,/g, '')) || 0;
-        else if (field === 'year') val = parseInt(val) || 2026;
+        else if (field === 'year') val = parseInt(val, 10) || new Date().getFullYear(); // M8 + dynamic default
         obj[field] = val;
       });
       return obj;
@@ -1340,10 +1407,24 @@ async function pullFromSheets() {
     const newPayroll  = rowsToObjs('payroll',  pR.values);
     const newTeam     = rowsToObjs('team',     tR.values);
 
-    if (newJobs.length)     { jobs     = newJobs;     localStorage.setItem('jema_jobs',     JSON.stringify(jobs)); }
-    if (newExpenses.length) { expenses = newExpenses; localStorage.setItem('jema_expenses', JSON.stringify(expenses)); }
-    if (newPayroll.length)  { payroll  = newPayroll;  localStorage.setItem('jema_payroll',  JSON.stringify(payroll)); }
-    if (newTeam.length)     { team     = newTeam;     localStorage.setItem('jema_team',     JSON.stringify(team)); }
+    // Audit H5 (May 2026): an empty result is a legitimate state (someone
+    // cleared the tab on purpose), not a failure signal. We're inside the try
+    // block past gGet — so reaching here means each fetch returned successfully.
+    // Only the JOBS tab gets a guard against accidental wipe (it carries the
+    // most data), and even there we require a fresh authenticated token to
+    // mean "the read truly succeeded with zero rows" before clearing local cache.
+    // Expenses, payroll, and team unconditionally mirror the sheet — that's the
+    // contract users now expect after the audit.
+    const jobsResultOk = jR && Array.isArray(jR.values || []);
+    if (newJobs.length || (jobsResultOk && jobs.length === 0)) {
+      jobs = newJobs; localStorage.setItem('jema_jobs', JSON.stringify(jobs));
+    } else if (jobsResultOk && newJobs.length === 0 && jobs.length > 0) {
+      // Sheet deliberately empty but we have local data — keep local but warn.
+      console.warn('[Sheets pull] JOBS tab empty; keeping local cache. Click Sync again to confirm if intentional.');
+    }
+    expenses = newExpenses; localStorage.setItem('jema_expenses', JSON.stringify(expenses));
+    payroll  = newPayroll;  localStorage.setItem('jema_payroll',  JSON.stringify(payroll));
+    team     = newTeam;     localStorage.setItem('jema_team',     JSON.stringify(team));
 
     nextJobId   = Math.max(0, ...jobs.map(j=>j.id||0)) + 1;
     nextExpId   = Math.max(0, ...expenses.map(e=>e.id||0)) + 1;
@@ -1420,11 +1501,25 @@ async function pushSheet(type, data) {
   // the entire tab if the network dropped between the two calls. Now if the PUT
   // fails, the sheet still has its previous data; if the trim fails after a
   // successful PUT, the new data is intact (only stale extra rows linger).
-  const allRows = [headers, ...rows];
-  await gPut(sheetName + '!A1', allRows);
+  //
+  // HEADER PRESERVATION (audit H4, May 2026): only write data rows (!A2). The
+  // header row is written exactly once — when the tab is empty or has a blank
+  // A1 — so manual sheet-side header formatting (bold, frozen, comments, color)
+  // and any deliberate header rename survive subsequent pushes.
+  if (rows.length > 0) {
+    await gPut(sheetName + '!A2', rows);
+  }
   // Trim leftover rows beyond our new data (when row count shrinks).
-  const firstStaleRow = allRows.length + 1;
+  const firstStaleRow = rows.length + 2; // +1 for header, +1 because next row
   await gClear(sheetName + '!A' + firstStaleRow + ':Z');
+
+  // Lazy header bootstrap: if A1 is empty, seed the headers so a brand-new tab
+  // gets the right schema. After that, the user owns the header row.
+  try {
+    const head = await gGet(sheetName + '!A1:1');
+    const haveHeaders = head.values && head.values[0] && head.values[0].some(c => String(c||'').trim() !== '');
+    if (!haveHeaders) await gPut(sheetName + '!A1', [headers]);
+  } catch (e) { /* header bootstrap is best-effort, never blocks the data write */ }
 }
 
 // ─── openModal helper (used by setup gear button) ─────────────────────────
@@ -1598,20 +1693,33 @@ const DEFAULT_TEAM = [
 let jobs, expenses, payroll, team, editingId = null, editingType = null;
 let nextJobId, nextExpId, nextPayId, nextTeamId;
 
+// Audit M11 (May 2026): wrap each JSON.parse in try/catch so a corrupted
+// localStorage value doesn't kill the entire app on init. If parse fails we
+// quietly fall back to DEFAULTS for that entity rather than throwing.
+function _safeParse(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn('[loadData] corrupted ' + key + ' — using defaults', e);
+    return null;
+  }
+}
 function loadData() {
   // NOTE: use length check, not || — empty arrays [] are truthy in JS so [] || DEFAULT never triggers
-  const _j = JSON.parse(localStorage.getItem('jema_jobs')     || 'null');
-  const _e = JSON.parse(localStorage.getItem('jema_expenses') || 'null');
-  const _p = JSON.parse(localStorage.getItem('jema_payroll')  || 'null');
-  const _t = JSON.parse(localStorage.getItem('jema_team')     || 'null');
+  const _j = _safeParse('jema_jobs');
+  const _e = _safeParse('jema_expenses');
+  const _p = _safeParse('jema_payroll');
+  const _t = _safeParse('jema_team');
   jobs     = (_j && _j.length) ? _j : DEFAULT_JOBS;
   expenses = (_e && _e.length) ? _e : DEFAULT_EXPENSES;
   payroll  = (_p && _p.length) ? _p : DEFAULT_PAYROLL;
   team     = (_t && _t.length) ? _t : DEFAULT_TEAM;
-  nextJobId = Math.max(0, ...jobs.map(j=>j.id)) + 1;
-  nextExpId = Math.max(0, ...expenses.map(e=>e.id)) + 1;
-  nextPayId = Math.max(0, ...payroll.map(p=>p.id)) + 1;
-  nextTeamId = Math.max(0, ...team.map(t=>t.id)) + 1;
+  nextJobId = Math.max(0, ...jobs.map(j=>j.id||0)) + 1;
+  nextExpId = Math.max(0, ...expenses.map(e=>e.id||0)) + 1;
+  nextPayId = Math.max(0, ...payroll.map(p=>p.id||0)) + 1;
+  nextTeamId = Math.max(0, ...team.map(t=>t.id||0)) + 1;
 }
 
 // DEBOUNCE (audit C2, May 2026): coalesce rapid edits into one push.
@@ -1642,6 +1750,11 @@ const fmtN = n => n == null || isNaN(n) ? 0 : Number(n);
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+// Audit M13 (May 2026): single source of truth for the per-project budget cap.
+// Was hardcoded as 35 across multiple files and copy strings; change here to
+// adjust the studio policy globally.
+const DEFAULT_BUDGET_CAP_PCT = 35;
 
 // ===================== SORT STATE =====================
 const sortState = {
@@ -1845,35 +1958,72 @@ function receiptBadge(r) {
   return r === 'Uploaded' ? `<span class="badge badge-paid">✓ Uploaded</span>` : `<span class="badge badge-pending">⏳ Pending</span>`;
 }
 
-function getMonthRevenue() {
+// Audit M1 (May 2026): the year was hardcoded to 2026 so the monthly chart
+// would silently drop 2025 and 2027 data. Now defaults to the year currently
+// selected in the year filter; falls back to the current calendar year.
+function _activeYear() {
+  const filt = document.getElementById('filter-year');
+  const v = filt && parseInt(filt.value, 10);
+  if (v) return v;
+  return new Date().getFullYear();
+}
+function getMonthRevenue(year) {
+  const yr = year || _activeYear();
   const rev = {};
   LISTS.months.forEach(m => rev[m] = 0);
-  jobs.filter(j => j.year === 2026).forEach(j => { if (j.month && rev[j.month] !== undefined) rev[j.month] += fmtN(j.total); });
+  jobs.filter(j => j.year === yr).forEach(j => { if (j.month && rev[j.month] !== undefined) rev[j.month] += fmtN(j.total); });
   return rev;
 }
 
-function getMonthExpenses() {
+function getMonthExpenses(year) {
+  const yr = year || _activeYear();
   const exp = {};
   LISTS.months.forEach(m => exp[m] = 0);
   expenses.forEach(e => {
-    if (e.date) {
-      const d = new Date(e.date);
-      const mo = LISTS.months[d.getMonth()];
-      if (exp[mo] !== undefined) exp[mo] += fmtN(e.amount);
-    }
+    if (!e.date) return;
+    const d = new Date(e.date);
+    if (isNaN(d) || d.getFullYear() !== yr) return;
+    const mo = LISTS.months[d.getMonth()];
+    if (exp[mo] !== undefined) exp[mo] += fmtN(e.amount);
   });
   return exp;
 }
 
+// Audit M2 follow-up: payroll lacks a stable date column in the legacy schema,
+// but where present, fold it in to the monthly net-profit chart for parity
+// with the Reports view. Used only by buildMonthlyDetailChart.
+function getMonthPayroll(year) {
+  const yr = year || _activeYear();
+  const pay = {};
+  LISTS.months.forEach(m => pay[m] = 0);
+  payroll.forEach(p => {
+    if (!p.date) return;
+    const d = new Date(p.date);
+    if (isNaN(d) || d.getFullYear() !== yr) return;
+    const mo = LISTS.months[d.getMonth()];
+    if (pay[mo] !== undefined) pay[mo] += fmtN(p.amount);
+  });
+  return pay;
+}
+
 // ===================== POPULATE SELECTS =====================
 function populateSelects() {
+  // Audit M7 (May 2026): if the previously-selected value disappears from the
+  // new option list (e.g. after a sheet sync removed a stage or category),
+  // notify via toast so users know their filter was reset rather than
+  // silently losing it.
   const addOpts = (id, arr, empty='') => {
     const el = document.getElementById(id);
     if (!el) return;
     const cur = el.value;
     while (el.options.length > (empty ? 1 : 0)) el.remove(el.options.length - 1);
     arr.forEach(v => { const o = new Option(v,v); el.add(o); });
-    if (cur) el.value = cur;
+    if (cur) {
+      el.value = cur;
+      if (cur && el.value !== cur && typeof showToast === 'function') {
+        showToast('Filter "' + cur + '" no longer in list — cleared');
+      }
+    }
   };
 
   addOpts('jf-month', LISTS.months, true);
@@ -1898,7 +2048,8 @@ function populateSelects() {
   addOpts('ef-payment', getDynamicPaymentMethods(), true);
   // Project tag: blank = General/Studio-Wide (not tied to any job)
   // C3: client names come from the sheet — escape before injecting into <option>.
-  const projOpts = [...jobs.map(j=>j.client)];
+  // L2 (May 2026): dedupe so a couple with multiple bookings only appears once.
+  const projOpts = [...new Set(jobs.map(j => j.client).filter(Boolean))];
   const efProj = document.getElementById('ef-project');
   if (efProj) {
     const cur = efProj.value;
@@ -1908,7 +2059,7 @@ function populateSelects() {
   addOpts('ef-receipt', LISTS.receiptStatus, true);
   addOpts('pf-member', team.map(t=>t.name), true);
   addOpts('pf-role', LISTS.roles, true);
-  addOpts('pf-project', [...jobs.map(j=>j.client)], true);
+  addOpts('pf-project', [...new Set(jobs.map(j=>j.client).filter(Boolean))], true); // L2: dedupe
   addOpts('pf-payment', getDynamicPaymentMethods(), true);
   addOpts('tf-role', LISTS.roles, true);
 
@@ -2018,7 +2169,7 @@ function _jobInRange(j, bounds) {
   const monthIdx = ['January','February','March','April','May','June',
     'July','August','September','October','November','December'].indexOf(j.month);
   if (monthIdx < 0) return false;
-  const jd = new Date(j.year, monthIdx, parseInt(j.day)||1);
+  const jd = new Date(j.year, monthIdx, parseInt(j.day, 10) || 1); // M8
   return jd >= bounds[0] && jd <= bounds[1];
 }
 
@@ -2091,7 +2242,7 @@ function refreshDashboard() {
   // ── Budget cap — use per-job cap (default 35%) ───────────────────────────
   // Always computed across ALL jobs (not period-filtered) for project health
   const budgetSummary = jobs.map(j => {
-    const capPct = (j.budget_cap && j.budget_cap > 0) ? j.budget_cap : 35;
+    const capPct = (j.budget_cap && j.budget_cap > 0) ? j.budget_cap : DEFAULT_BUDGET_CAP_PCT; // M13
     const projPayroll  = payroll.filter(p=>p.project===j.client).reduce((s,p)=>s+fmtN(p.amount),0);
     const projExpenses = expenses.filter(e=>e.project===j.client).reduce((s,e)=>s+fmtN(e.amount),0);
     const totalCost = projPayroll + projExpenses;
@@ -2307,7 +2458,7 @@ function buildUpcoming() {
 
   function jobDate(j) {
     const mo = (monthOrder[j.month] || 1) - 1;
-    const dayNum = parseInt((j.day||'1').replace(/[a-z]+/gi,'').trim().split(/\s*[\+,&]\s*/)[0]) || 1;
+    const dayNum = parseInt((j.day||'1').replace(/[a-z]+/gi,'').trim().split(/\s*[\+,&]\s*/)[0], 10) || 1; // M8
     return new Date(Number(j.year), mo, dayNum);
   }
 
@@ -2441,7 +2592,7 @@ function saveJob() {
     client: document.getElementById('jf-client').value.trim(),
     day: document.getElementById('jf-day').value.trim(),
     month: document.getElementById('jf-month').value,
-    year: parseInt(document.getElementById('jf-year').value)||2026,
+    year: parseInt(document.getElementById('jf-year').value, 10) || new Date().getFullYear(), // M8
     location: locationFromModal(),
     pkg: document.getElementById('jf-package').value,
     total: parseFloat(document.getElementById('jf-total').value)||0,
@@ -2768,7 +2919,7 @@ function buildReport() {
   // Build per-project costs
   const projectData = {};
   jobs.forEach(j => {
-    projectData[j.client] = { revenue: fmtN(j.total), payroll: 0, expenses: 0, budgetCapPct: (j.budget_cap && j.budget_cap > 0) ? j.budget_cap : 35 };
+    projectData[j.client] = { revenue: fmtN(j.total), payroll: 0, expenses: 0, budgetCapPct: (j.budget_cap && j.budget_cap > 0) ? j.budget_cap : DEFAULT_BUDGET_CAP_PCT };
   });
   payroll.forEach(p => {
     if (p.project && projectData[p.project]) projectData[p.project].payroll += fmtN(p.amount);
@@ -2782,7 +2933,7 @@ function buildReport() {
     const totalCost = d.payroll + d.expenses;
     const profit = d.revenue - totalCost;
     const margin = d.revenue > 0 ? profit / d.revenue : 0;
-    const budgetCap = d.revenue * ((d.budgetCapPct || 35) / 100);
+    const budgetCap = d.revenue * ((d.budgetCapPct || DEFAULT_BUDGET_CAP_PCT) / 100);
     const budgetUsedPct = budgetCap > 0 ? totalCost / budgetCap : 0;
     let budgetStatus, budgetClass;
     if (budgetUsedPct > 1.0)  { budgetStatus = '🚨 Over Budget'; budgetClass = 'bst-over'; }
@@ -2866,9 +3017,9 @@ function filterReport() {
 function buildMonthlyDetailChart() {
   const rev = getMonthRevenue();
   const exp = getMonthExpenses();
-  const payByMonth = {};
-  LISTS.months.forEach(m => payByMonth[m] = 0);
-  // payroll doesn't have month directly, skip for now
+  // Audit M2 (May 2026): include payroll in the Net Profit line so this chart
+  // matches the True Net Profit KPI in the Reports header.
+  const pay = getMonthPayroll();
 
   const ctx = document.getElementById('monthlyDetailChart').getContext('2d');
   if (monthlyDetailInst) monthlyDetailInst.destroy();
@@ -2879,7 +3030,8 @@ function buildMonthlyDetailChart() {
       datasets: [
         { label: 'Revenue', data: LISTS.months.map(m=>rev[m]), backgroundColor: 'rgba(201,168,76,0.7)', borderRadius: 4 },
         { label: 'Expenses', data: LISTS.months.map(m=>exp[m]), backgroundColor: 'rgba(231,76,60,0.6)', borderRadius: 4 },
-        { label: 'Net Profit', data: LISTS.months.map(m=>rev[m]-exp[m]), type: 'line', borderColor: '#27AE60', backgroundColor: 'rgba(39,174,96,0.1)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#27AE60' }
+        { label: 'Payroll', data: LISTS.months.map(m=>pay[m]), backgroundColor: 'rgba(52,152,219,0.6)', borderRadius: 4 },
+        { label: 'Net Profit', data: LISTS.months.map(m=>rev[m]-exp[m]-pay[m]), type: 'line', borderColor: '#27AE60', backgroundColor: 'rgba(39,174,96,0.1)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#27AE60' }
       ]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#6b7a8d', font:{size:11} } } }, scales: { x: { ticks: { color: '#6b7a8d', font:{size:10} }, grid: { color: 'rgba(0,0,0,0.05)' } }, y: { ticks: { color: '#6b7a8d', font:{size:10}, callback: v => '$'+v.toLocaleString() }, grid: { color: 'rgba(0,0,0,0.05)' } } } }
@@ -2896,11 +3048,22 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 });
 
 // ===================== TABS =====================
-function showTab(name) {
+// Audit H6 (May 2026): the previous showTab() used the implicit window.event
+// global to find which nav button to highlight. That works in Chrome's
+// non-strict mode but throws under strict mode and dies if showTab is ever
+// called programmatically (e.g. on page init, from the mobile nav, or a deep
+// link). Now we identify the right button by data-tab / onclick text and
+// also update the mobile nav to keep both bars in sync (related to M9).
+function showTab(name, evt) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  event.currentTarget.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  // Prefer the explicit event target (current click); fall back to selector.
+  const btn = (evt && evt.currentTarget) ||
+              document.querySelector('.nav-btn[onclick*="showTab(\'' + name + '\')"]');
+  if (btn) btn.classList.add('active');
+  // Keep the mobile bottom nav in sync regardless of where the click came from.
+  if (typeof setMobActive === 'function') setMobActive(name);
   if (name === 'dashboard') refreshDashboard();
   if (name === 'jobs')     { filterJobs();     renderJobStats(); }
   if (name === 'expenses') { filterExpenses(); renderExpStats(); }
@@ -2961,20 +3124,27 @@ function saveQuickLog() {
 }
 
 // ===================== TOAST =====================
+// L3 (May 2026): rotating timer ID so back-to-back toasts don't leave the
+// last one fading earlier than expected. Element stays in the DOM (one-time
+// cost) but text is the only thing that changes between calls.
+let _toastTimer = null;
 function showToast(msg) {
   let t = document.getElementById('_toast');
   if (!t) {
     t = document.createElement('div');
     t.id = '_toast';
+    t.setAttribute('role', 'status');
+    t.setAttribute('aria-live', 'polite');
     t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);'
       + 'background:var(--success);color:#fff;padding:10px 20px;border-radius:20px;'
       + 'font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity 0.3s;'
       + 'pointer-events:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
     document.body.appendChild(t);
   }
+  if (_toastTimer) clearTimeout(_toastTimer);
   t.textContent = msg;
   t.style.opacity = '1';
-  setTimeout(() => { t.style.opacity = '0'; }, 2200);
+  _toastTimer = setTimeout(() => { t.style.opacity = '0'; _toastTimer = null; }, 2200);
 }
 
 // ===================== INIT =====================
@@ -3006,22 +3176,28 @@ setTimeout(initGoogleSync, 600);
 });
 </script>
 
-<!-- ===== MOBILE BOTTOM NAV ===== -->
+<!-- ===== MOBILE BOTTOM NAV =====
+     Audit M10 (May 2026): added Team button so mobile users can access the
+     Team management view — previously desktop-only. The showTab() patch from
+     H6 also keeps these in sync when the user clicks the desktop top nav. -->
 <nav class="mob-nav">
   <div class="mob-nav-inner">
-    <button class="mob-nav-btn active" id="mob-btn-dashboard" onclick="showTab('dashboard');setMobActive('dashboard')">
+    <button class="mob-nav-btn active" id="mob-btn-dashboard" onclick="showTab('dashboard', event)">
       <span class="icon">📊</span>Dashboard
     </button>
-    <button class="mob-nav-btn" id="mob-btn-jobs" onclick="showTab('jobs');setMobActive('jobs')">
+    <button class="mob-nav-btn" id="mob-btn-jobs" onclick="showTab('jobs', event)">
       <span class="icon">📋</span>Jobs
     </button>
-    <button class="mob-nav-btn" id="mob-btn-expenses" onclick="showTab('expenses');setMobActive('expenses')">
+    <button class="mob-nav-btn" id="mob-btn-expenses" onclick="showTab('expenses', event)">
       <span class="icon">💳</span>Expenses
     </button>
-    <button class="mob-nav-btn" id="mob-btn-payroll" onclick="showTab('payroll');setMobActive('payroll')">
+    <button class="mob-nav-btn" id="mob-btn-payroll" onclick="showTab('payroll', event)">
       <span class="icon">👥</span>Payroll
     </button>
-    <button class="mob-nav-btn" id="mob-btn-reports" onclick="showTab('reports');setMobActive('reports')">
+    <button class="mob-nav-btn" id="mob-btn-team" onclick="showTab('team', event)">
+      <span class="icon">🤝</span>Team
+    </button>
+    <button class="mob-nav-btn" id="mob-btn-reports" onclick="showTab('reports', event)">
       <span class="icon">📈</span>Reports
     </button>
   </div>

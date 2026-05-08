@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JEMA Studios – Production Portal</title>
+<meta name="description" content="JEMA Studios crew portal — log payroll and expenses against active jobs.">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     --gold: #C9A84C; --gold-light: #E8C96A; --gold-dark: #A07C2D;
@@ -166,8 +168,23 @@
 
 <main class="main">
 
+  <!-- ── SIGN-IN STATE (audit H7, May 2026) ──
+       Replaces the old shared-secret API_KEY with a real Google sign-in flow.
+       Anyone hitting this page must sign in; the proxy then verifies their
+       Google ID token server-side and checks the email against an allowlist
+       maintained in the Apps Script. If their email isn't on the list they
+       see a clear "not authorised" message instead of being able to write
+       to the sheet. -->
+  <div id="state-signin" class="card connect-state hidden">
+    <div class="connect-icon">🔒</div>
+    <div class="connect-title">Sign in to log entries</div>
+    <div class="connect-sub">Use your JEMA Studios Google account.</div>
+    <div id="g-signin-btn" style="display:flex;justify-content:center;margin-top:8px"></div>
+    <div id="signin-error" class="connect-sub" style="color:var(--danger);margin-top:14px;display:none"></div>
+  </div>
+
   <!-- ── CONNECT STATE ── -->
-  <div id="state-connect" class="card connect-state">
+  <div id="state-connect" class="card connect-state hidden">
     <div class="connect-icon">⏳</div>
     <div class="connect-title">Loading portal…</div>
     <div class="connect-sub">Connecting to JEMA Finance Operations Hub.</div>
@@ -397,13 +414,24 @@
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-// After deploying portalProxy.gs as a Web App, paste the URL below:
-const PROXY_URL = 'https://script.google.com/macros/s/AKfycbzfs7cyEmsmtfPnPi8kZcl0gUkXK8E3MQY2UAdKK0zsYell9IWWPejhnXA05DZrs5oHgQ/exec';
-const API_KEY   = 'jema-portal-2026';
+const PROXY_URL  = 'https://script.google.com/macros/s/AKfycbzfs7cyEmsmtfPnPi8kZcl0gUkXK8E3MQY2UAdKK0zsYell9IWWPejhnXA05DZrs5oHgQ/exec';
+// Audit H7 (May 2026): the previous shared-secret API_KEY was visible in
+// view-source — anyone with the URL could write rows. Replaced with a Google
+// sign-in flow that hands a verifiable ID token to the proxy. The proxy
+// validates the token via Google's tokeninfo endpoint and checks the email
+// against an allowlist managed in the Apps Script. Same Client ID as the
+// Financial App so no new Cloud Console wiring is needed beyond authorising
+// this page's origin.
+const G_CLIENT_ID = '304894248307-ohshubs8o36kksgqlbbr8q0doe1b695k.apps.googleusercontent.com';
+// PERF: sessionStorage cache key + TTL (10 min) — avoids re-hitting proxy on page reload
+const CACHE_KEY  = 'jema_init_v1';
+const CACHE_TTL  = 10 * 60 * 1000;
 
 let allJobs = [], projectExpenses = [], projectPayroll = [];
 let selectedJob = null;
 let LISTS = {};
+let gIdToken = null; // set when the user signs in via Google Identity Services
+let gIdEmail = null; // for display + audit logs only — server still re-verifies
 const fmt   = n => '$' + Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 const today = () => new Date().toISOString().slice(0,10);
 // BUG FIX: XSS guard — escape all spreadsheet-sourced strings before innerHTML injection
@@ -414,9 +442,29 @@ document.getElementById('pay-date').value  = today();
 document.getElementById('proj-date').value = today();
 document.getElementById('gen-date').value  = today();
 
+// ── ID-TOKEN HELPER ──────────────────────────────────────────────────────────
+// Tiny client-side check: ID tokens are JWTs whose middle segment is a base64
+// JSON payload with `exp` (epoch seconds). If we're past `exp` we force a
+// re-sign before the request goes out, so the user gets a clear sign-in
+// prompt instead of an opaque proxy 401.
+function _decodeJwtPayload(jwt) {
+  try {
+    const seg = jwt.split('.')[1];
+    const padded = seg.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((seg.length + 3) % 4);
+    return JSON.parse(decodeURIComponent(escape(atob(padded))));
+  } catch (e) { return null; }
+}
+function _idTokenStillValid() {
+  if (!gIdToken) return false;
+  const payload = _decodeJwtPayload(gIdToken);
+  if (!payload || !payload.exp) return false;
+  return (payload.exp * 1000) > Date.now() + 30000; // 30s safety margin
+}
+
 // ── PROXY HELPERS ─────────────────────────────────────────────────────────────
 async function proxyGet(action, extra) {
-  const params = new URLSearchParams({ key: API_KEY, action, ...(extra||{}) });
+  if (!_idTokenStillValid()) { showSignIn(); throw new Error('Sign-in required'); }
+  const params = new URLSearchParams({ id_token: gIdToken, action, ...(extra||{}) });
   const r = await fetch(PROXY_URL + '?' + params.toString());
   if (!r.ok) throw new Error('Request failed: ' + r.status);
   const data = await r.json();
@@ -424,10 +472,11 @@ async function proxyGet(action, extra) {
   return data;
 }
 async function proxyPost(action, payload) {
+  if (!_idTokenStillValid()) { showSignIn(); throw new Error('Sign-in required'); }
   const r = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key: API_KEY, action, data: payload })
+    body: JSON.stringify({ id_token: gIdToken, action, data: payload })
   });
   if (!r.ok) throw new Error('Request failed: ' + r.status);
   const data = await r.json();
@@ -435,22 +484,83 @@ async function proxyPost(action, payload) {
   return data;
 }
 
+// ── SIGN-IN UI ───────────────────────────────────────────────────────────────
+function showSignIn(message) {
+  ['state-connect','state-select','state-budget','state-log','state-recent']
+    .forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('state-signin').classList.remove('hidden');
+  const errEl = document.getElementById('signin-error');
+  if (message) { errEl.textContent = message; errEl.style.display = 'block'; }
+  else { errEl.style.display = 'none'; }
+  document.getElementById('sync-label').textContent = 'Signed out';
+  document.getElementById('sync-dot').classList.remove('connected');
+}
+
+function _onCredentialResponse(resp) {
+  if (!resp || !resp.credential) { showSignIn('Sign-in failed — try again.'); return; }
+  gIdToken = resp.credential;
+  const payload = _decodeJwtPayload(gIdToken);
+  gIdEmail = payload && payload.email || null;
+  document.getElementById('state-signin').classList.add('hidden');
+  initPortal();
+}
+
+function _initGoogleSignIn() {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+    setTimeout(_initGoogleSignIn, 250);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: G_CLIENT_ID,
+    callback: _onCredentialResponse,
+    auto_select: true
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('g-signin-btn'),
+    { theme: 'filled_blue', size: 'large', text: 'signin_with', shape: 'pill' }
+  );
+  // One Tap prompt — silent if previously approved, falls back to button click.
+  google.accounts.id.prompt();
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
-// BUG FIX: was marking "Live" immediately before data loaded; now only after success.
-// Also adds retry UI on connection failure instead of leaving a blank page.
+// PERF: single getInit request (jobs + lists + team in one round-trip) with
+// sessionStorage caching — skips the proxy entirely on repeat visits within 10 min.
 async function initPortal() {
   if (!PROXY_URL || PROXY_URL === 'YOUR_WEB_APP_URL_HERE') {
     showToast('⚠️ Proxy URL not configured — see setup instructions');
     return;
   }
+  if (!_idTokenStillValid()) { showSignIn(); return; }
   const connectCard = document.getElementById('state-connect');
   connectCard.classList.remove('hidden');
   try {
-    await Promise.all([ loadLists(), loadTeamMembers(), loadJobs() ]);
+    let initData = null;
+
+    // Try sessionStorage first
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Date.now() - (parsed._ts || 0) < CACHE_TTL) initData = parsed;
+      }
+    } catch(e) { /* sessionStorage unavailable — proceed without cache */ }
+
+    if (!initData) {
+      // PERF: one request instead of three parallel ones
+      initData = await proxyGet('getInit');
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...initData, _ts: Date.now() })); } catch(e) {}
+    }
+
+    applyInitData(initData);
     connectCard.classList.add('hidden');
     document.getElementById('sync-dot').classList.add('connected');
-    document.getElementById('sync-label').textContent = 'Live';
+    document.getElementById('sync-label').textContent = (initData._cached ? 'Live (cached)' : 'Live') + (gIdEmail ? ' · ' + gIdEmail : '');
   } catch(e) {
+    if (/unauthor|not on allowlist|invalid id_token/i.test(e.message)) {
+      showSignIn('Your email isn\'t on the JEMA Studios allowlist. Ask Kwaku to add you.');
+      return;
+    }
     connectCard.innerHTML = `
       <div class="connect-icon">⚠️</div>
       <div class="connect-title">Connection failed</div>
@@ -460,90 +570,61 @@ async function initPortal() {
   }
 }
 
-// ── LOAD LISTS (dynamic dropdowns) ───────────────────────────────────────────
-async function loadLists() {
-  try {
-    const data = await proxyGet('getLists');
-    LISTS = data.lists || {};
-    if (!Object.keys(LISTS).length) return;
+// ── APPLY INIT DATA — populates all dropdowns from a single getInit response ──
+function applyInitData(data) {
+  LISTS = data.lists || {};
+  allJobs = data.jobs || [];
+  const members = data.members || [];
 
-    // Helper to populate a <select> from a LISTS key, keeping placeholder
+  // ── Team member dropdown
+  const memberSel = document.getElementById('pay-member');
+  memberSel.innerHTML = '<option value="">Select member</option>';
+  members.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    memberSel.appendChild(opt);
+  });
+
+  // ── Dynamic LISTS dropdowns
+  if (Object.keys(LISTS).length) {
     const fill = (id, key) => {
       const sel = document.getElementById(id);
       if (!sel || !LISTS[key]) return;
       const current = sel.value;
-      // Remove all except first placeholder option
       while (sel.options.length > 1) sel.remove(1);
-      LISTS[key].forEach(v => {
-        const o = document.createElement('option');
-        o.value = v; o.textContent = v;
-        sel.appendChild(o);
-      });
+      LISTS[key].forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
       if (current) sel.value = current;
     };
-
-    // Roles
     fill('pay-role', 'ROLES');
-
-    // Payment methods — all three forms
     ['pay-method','proj-method','gen-method'].forEach(id => fill(id, 'PAYMENT_METHODS'));
 
-    // Project expense categories
-    const projCatIds = ['proj-category'];
-    projCatIds.forEach(id => {
-      const sel = document.getElementById(id);
-      if (!sel || !LISTS['CATEGORIES']) return;
-      while (sel.options.length > 1) sel.remove(1);
-      // Project-relevant categories (exclude overhead/subscription/admin)
-      const exclude = ['Subscriptions','Office Supplies','Bank Fees','Currency Conversion','Platform Fees','Other Fees','Legal','Accounting','Consulting','Other Professional','Workshops','Online Courses','Books','Cash Transfer','Bill Paid','Vendor Gifts','Other Gifts'];
-      LISTS['CATEGORIES']
-        .filter(c => !exclude.some(ex => c.startsWith(ex)))
-        .forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
-    });
+    if (LISTS['CATEGORIES']) {
+      const projExcl = ['Subscriptions','Office Supplies','Bank Fees','Currency Conversion','Platform Fees','Other Fees','Legal','Accounting','Consulting','Other Professional','Workshops','Online Courses','Books','Cash Transfer','Bill Paid','Vendor Gifts','Other Gifts'];
+      const genExcl  = ['Travel –','Meals –','Equipment Rental','Studio Rental','Client Gifts','Shipping'];
 
-    // General expense categories
-    const genSel = document.getElementById('gen-category');
-    if (genSel && LISTS['CATEGORIES']) {
-      while (genSel.options.length > 1) genSel.remove(1);
-      // General/overhead only — exclude project-specific ones
-      const exclude = ['Travel –','Meals –','Equipment Rental','Studio Rental','Client Gifts','Shipping'];
-      LISTS['CATEGORIES']
-        .filter(c => !exclude.some(ex => c.startsWith(ex)))
-        .forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; genSel.appendChild(o); });
+      const projSel = document.getElementById('proj-category');
+      if (projSel) {
+        while (projSel.options.length > 1) projSel.remove(1);
+        LISTS['CATEGORIES'].filter(c => !projExcl.some(ex => c.startsWith(ex)))
+          .forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; projSel.appendChild(o); });
+      }
+      const genSel = document.getElementById('gen-category');
+      if (genSel) {
+        while (genSel.options.length > 1) genSel.remove(1);
+        LISTS['CATEGORIES'].filter(c => !genExcl.some(ex => c.startsWith(ex)))
+          .forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; genSel.appendChild(o); });
+      }
     }
+  }
 
-  } catch(e) { console.warn('Could not load lists:', e.message); }
-}
-
-// ── LOAD TEAM MEMBERS ────────────────────────────────────────────────────────
-async function loadTeamMembers() {
-  try {
-    const data = await proxyGet('getTeam');
-    const members = data.members || [];
-    const sel = document.getElementById('pay-member');
-    sel.innerHTML = '<option value="">Select member</option>';
-    members.forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name; opt.textContent = name;
-      sel.appendChild(opt);
-    });
-  } catch(e) { console.warn('Could not load team members:', e.message); showToast('⚠️ Could not load team members — refresh to retry'); }
-}
-
-// ── LOAD JOBS ─────────────────────────────────────────────────────────────────
-// BUG FIX: was swallowing errors silently leaving a blank page; now re-throws
-// so initPortal can show the retry UI.
-async function loadJobs() {
-  const data = await proxyGet('getJobs');  // let errors propagate to initPortal
-  allJobs = data.jobs || [];
-  const sel = document.getElementById('project-select');
-  // Clear any options beyond the placeholder (safe to re-call)
-  while (sel.options.length > 1) sel.remove(1);
+  // ── Job selector
+  const jobSel = document.getElementById('project-select');
+  while (jobSel.options.length > 1) jobSel.remove(1);
   allJobs.forEach((j,i) => {
     const opt = document.createElement('option');
     opt.value = i;
     opt.textContent = `${j.client} · ${j.month} ${j.year} · ${j.location}`;
-    sel.appendChild(opt);
+    jobSel.appendChild(opt);
   });
   document.getElementById('state-select').classList.remove('hidden');
 }
@@ -552,9 +633,7 @@ async function loadJobs() {
 async function onProjectSelect() {
   const idx = document.getElementById('project-select').value;
   if (idx === '') {
-    document.getElementById('state-budget').classList.add('hidden');
-    document.getElementById('state-log').classList.add('hidden');
-    document.getElementById('state-recent').classList.add('hidden');
+    ['state-budget','state-log','state-recent'].forEach(id => document.getElementById(id).classList.add('hidden'));
     return;
   }
   selectedJob = allJobs[parseInt(idx)];
@@ -564,44 +643,55 @@ async function onProjectSelect() {
 async function loadProjectData() {
   if (!selectedJob) return;
   try {
-    // Clamp cap: must be 1–100%. Default 35% if missing/zero; cap at 100% if bad data entry.
-    const capPct = Math.min(Math.max(selectedJob.budget_cap > 0 ? selectedJob.budget_cap : 35, 1), 100);
-    const capAmt = selectedJob.total * (capPct / 100);
-
-    // Load expenses + payroll via proxy (already filtered by client)
     const data = await proxyGet('getProjectData', { client: selectedJob.client });
     projectExpenses = data.expenses || [];
     projectPayroll  = data.payroll  || [];
-    const totalExp = projectExpenses.reduce((s,r) => s + (r.amount||0), 0);
-    const totalPay = projectPayroll.reduce((s,r)  => s + (r.amount||0), 0);
-
-    const totalSpent = totalExp + totalPay;
-    const remaining  = capAmt - totalSpent;
-    const pct = capAmt > 0 ? Math.min((totalSpent / capAmt) * 100, 100) : 0;
-
-    // Update budget display
-    document.getElementById('project-info').innerHTML =
-      `<strong>${esc(selectedJob.client)}</strong> &nbsp;·&nbsp; ${esc(selectedJob.day)} ${esc(selectedJob.month)} ${esc(selectedJob.year)} &nbsp;·&nbsp; ${esc(selectedJob.location)}<br>
-       <span style="margin-top:4px;display:block">${esc(selectedJob.pkg)}</span>`;
-
-    document.getElementById('stat-cap').textContent       = fmt(capAmt);
-    document.getElementById('stat-spent').textContent     = fmt(totalSpent);
-    document.getElementById('stat-remaining').textContent = fmt(remaining > 0 ? remaining : 0);
-    document.getElementById('stat-remaining').className   = 'budget-stat-value ' + (remaining <= 0 ? 'red' : remaining < capAmt * 0.1 ? 'gold' : 'green');
-
-    const bar = document.getElementById('budget-bar');
-    bar.style.width = pct + '%';
-    bar.style.background = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
-    document.getElementById('bar-pct-label').textContent = pct.toFixed(1) + '% used';
-    document.getElementById('bar-cap-label').textContent = capPct + '% budget cap of contract';
-
+    renderBudget();
+    renderRecent();
     document.getElementById('state-budget').classList.remove('hidden');
     document.getElementById('state-log').classList.remove('hidden');
-
-    // Render recent entries
-    renderRecent(totalExp, totalPay);
-
   } catch(e) { showToast('Error loading project data: ' + e.message); }
+}
+
+// ── BUDGET DISPLAY — extracted so optimistic updates can reuse it ─────────────
+function renderBudget() {
+  if (!selectedJob) return;
+  // Clamp cap: must be 1–100%. Default 35% if missing/zero; cap at 100% if bad data entry.
+  const capPct = Math.min(Math.max(selectedJob.budget_cap > 0 ? selectedJob.budget_cap : 35, 1), 100);
+  const capAmt = selectedJob.total * (capPct / 100);
+
+  const totalExp   = projectExpenses.reduce((s,r) => s + (r.amount||0), 0);
+  const totalPay   = projectPayroll.reduce((s,r)  => s + (r.amount||0), 0);
+  const totalSpent = totalExp + totalPay;
+  const remaining  = capAmt - totalSpent;
+  const pct        = capAmt > 0 ? Math.min((totalSpent / capAmt) * 100, 100) : 0;
+
+  document.getElementById('project-info').innerHTML =
+    `<strong>${esc(selectedJob.client)}</strong> &nbsp;·&nbsp; ${esc(selectedJob.day)} ${esc(selectedJob.month)} ${esc(selectedJob.year)} &nbsp;·&nbsp; ${esc(selectedJob.location)}<br>
+     <span style="margin-top:4px;display:block">${esc(selectedJob.pkg)}</span>`;
+
+  document.getElementById('stat-cap').textContent       = fmt(capAmt);
+  document.getElementById('stat-spent').textContent     = fmt(totalSpent);
+  document.getElementById('stat-remaining').textContent = fmt(remaining > 0 ? remaining : 0);
+  document.getElementById('stat-remaining').className   = 'budget-stat-value ' + (remaining <= 0 ? 'red' : remaining < capAmt * 0.1 ? 'gold' : 'green');
+
+  const bar = document.getElementById('budget-bar');
+  bar.style.width      = pct + '%';
+  bar.style.background = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
+  document.getElementById('bar-pct-label').textContent = pct.toFixed(1) + '% used';
+  document.getElementById('bar-cap-label').textContent = capPct + '% budget cap of contract';
+}
+
+// ── OPTIMISTIC UPDATE — updates local arrays + UI without a round-trip ────────
+// Called immediately after a successful POST so the user sees their entry at once.
+function applyOptimisticEntry(type, entry) {
+  if (type === 'payroll') {
+    projectPayroll.push(entry);
+  } else {
+    projectExpenses.push(entry);
+  }
+  renderBudget();
+  renderRecent();
 }
 
 function renderRecent() {
@@ -633,12 +723,22 @@ function renderRecent() {
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────
 function switchTab(tab, btn) {
-  ['payroll','project','general'].forEach(t => {
-    document.getElementById('form-' + t).classList.add('hidden');
-  });
+  ['payroll','project','general'].forEach(t => document.getElementById('form-' + t).classList.add('hidden'));
   document.querySelectorAll('.tab-pill').forEach(b => b.classList.remove('active'));
   document.getElementById('form-' + tab).classList.remove('hidden');
   btn.classList.add('active');
+}
+
+// Audit M14 (May 2026): generate a fresh uuid for every submit so the proxy
+// can dedupe network-blip retries and rapid double-taps. crypto.randomUUID
+// is widely available (Chrome, Safari 15.4+, Firefox 95+); fall back to a
+// simple random hex if not present (older WebView, etc.).
+function _newEntryUuid() {
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
 }
 
 // ── SUBMIT PAYROLL ────────────────────────────────────────────────────────────
@@ -655,12 +755,14 @@ async function submitPayroll() {
   if (amount <= 0) { showToast('Amount must be greater than zero'); return; }
   const btn = document.querySelector('#form-payroll .btn-submit');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
+  const entry_uuid = _newEntryUuid();
   try {
-    await proxyPost('appendPayroll', { date, project: selectedJob.client, member, role, method, amount, notes });
+    await proxyPost('appendPayroll', { entry_uuid, date, project: selectedJob.client, member, role, method, amount, notes });
     showToast('✅ Payroll entry saved!');
     document.getElementById('pay-amount').value = '';
     document.getElementById('pay-notes').value  = '';
-    await loadProjectData();
+    // PERF: optimistic update — no extra round-trip to the proxy
+    applyOptimisticEntry('payroll', { date, member, role, amount });
   } catch(e) { showToast('Error: ' + e.message); }
   btn.disabled = false; btn.textContent = '✓ Log Payroll Entry';
 }
@@ -678,12 +780,14 @@ async function submitProjectExpense() {
   if (amount <= 0) { showToast('Amount must be greater than zero'); return; }
   const btn = document.querySelector('#form-project .btn-submit');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
+  const entry_uuid = _newEntryUuid();
   try {
-    await proxyPost('appendExpense', { date, category, amount, method, project: selectedJob.client, desc, receipt });
+    await proxyPost('appendExpense', { entry_uuid, date, category, amount, method, project: selectedJob.client, desc, receipt });
     showToast('✅ Project expense saved!');
     document.getElementById('proj-amount').value = '';
     document.getElementById('proj-desc').value   = '';
-    await loadProjectData();
+    // PERF: optimistic update — no extra round-trip to the proxy
+    applyOptimisticEntry('expense', { date, category, amount, method, desc });
   } catch(e) { showToast('Error: ' + e.message); }
   btn.disabled = false; btn.textContent = '✓ Log Project Expense';
 }
@@ -700,11 +804,15 @@ async function submitGeneralExpense() {
   if (amount <= 0) { showToast('Amount must be greater than zero'); return; }
   const btn = document.querySelector('#form-general .btn-submit');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
+  const entry_uuid = _newEntryUuid();
   try {
-    await proxyPost('appendExpense', { date, category, amount, method, project: '', desc, receipt });
+    await proxyPost('appendExpense', { entry_uuid, date, category, amount, method, project: '', desc, receipt });
     showToast('✅ General expense saved!');
     document.getElementById('gen-amount').value = '';
     document.getElementById('gen-desc').value   = '';
+    // M12 follow-through: even though general expense isn't tied to a project,
+    // a successful save deserves a small visual confirmation in the recent list.
+    if (typeof renderRecent === 'function' && selectedJob) renderRecent();
   } catch(e) { showToast('Error: ' + e.message); }
   btn.disabled = false; btn.textContent = '✓ Log General Expense';
 }
@@ -717,7 +825,11 @@ function showToast(msg) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-initPortal();
+// Audit H7: show sign-in first; init only kicks off after a valid ID token
+// arrives via _onCredentialResponse. The Google Identity Services script may
+// still be loading, so _initGoogleSignIn polls until window.google is ready.
+showSignIn();
+_initGoogleSignIn();
 </script>
 </body>
 </html>
