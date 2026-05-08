@@ -462,10 +462,18 @@ function _idTokenStillValid() {
 }
 
 // ── PROXY HELPERS ─────────────────────────────────────────────────────────────
+// HOT-FIX (May 8 2026, post-H7): Google Apps Script rejects URL params over
+// ~16 KB with `Argument too large: key`. ID tokens are ~1 KB JWTs — fine alone
+// but combined with action+extra they tripped the limit on long client names.
+// Both helpers now POST a JSON body with the id_token; the proxy routes reads
+// vs writes by inspecting the action name in doPost.
 async function proxyGet(action, extra) {
   if (!_idTokenStillValid()) { showSignIn(); throw new Error('Sign-in required'); }
-  const params = new URLSearchParams({ id_token: gIdToken, action, ...(extra||{}) });
-  const r = await fetch(PROXY_URL + '?' + params.toString());
+  const r = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_token: gIdToken, action, params: extra || {} })
+  });
   if (!r.ok) throw new Error('Request failed: ' + r.status);
   const data = await r.json();
   if (data.error) throw new Error(data.error);
