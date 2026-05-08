@@ -508,9 +508,15 @@ async function proxyPost(action, payload) {
   // Always attach `who` from localStorage — proxy rejects writes without it.
   const who = getWho();
   if (!who) { showWhoami(); throw new Error('Pick your name first'); }
+  // CORS hotfix (May 8 2026): application/json triggers a CORS preflight that
+  // Apps Script's /exec endpoint doesn't survive (it 302-redirects to
+  // googleusercontent.com, breaking the preflight contract). text/plain is a
+  // "simple" Content-Type per CORS spec, so the browser skips preflight and
+  // POSTs directly. Apps Script reads the body via e.postData.contents which
+  // doesn't care about the Content-Type header — JSON parses the same.
   const r = await fetch(PROXY_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ key: API_KEY, action, data: { ...payload, who } })
   });
   if (!r.ok) throw new Error('Request failed: ' + r.status);
