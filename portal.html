@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JEMA Studios – Production Portal</title>
 <meta name="description" content="JEMA Studios crew portal — log payroll and expenses against active jobs.">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     --gold: #C9A84C; --gold-light: #E8C96A; --gold-dark: #A07C2D;
@@ -168,19 +167,23 @@
 
 <main class="main">
 
-  <!-- ── SIGN-IN STATE (audit H7, May 2026) ──
-       Replaces the old shared-secret API_KEY with a real Google sign-in flow.
-       Anyone hitting this page must sign in; the proxy then verifies their
-       Google ID token server-side and checks the email against an allowlist
-       maintained in the Apps Script. If their email isn't on the list they
-       see a clear "not authorised" message instead of being able to write
-       to the sheet. -->
-  <div id="state-signin" class="card connect-state hidden">
-    <div class="connect-icon">🔒</div>
-    <div class="connect-title">Sign in to log entries</div>
-    <div class="connect-sub">Use your JEMA Studios Google account.</div>
-    <div id="g-signin-btn" style="display:flex;justify-content:center;margin-top:8px"></div>
-    <div id="signin-error" class="connect-sub" style="color:var(--danger);margin-top:14px;display:none"></div>
+  <!-- ── WHO-ARE-YOU CARD (post-rollback May 2026) ──
+       Replaces the H7 Google Sign-In with a one-time name picker. Stored in
+       localStorage so each crew member only does this once per device. Stamped
+       into the Notes column on every write for an audit trail. The proxy will
+       reject writes with no `who`, so this card is a hard gate — but a 5-second
+       gate, not a sign-in flow. -->
+  <div id="state-whoami" class="card connect-state hidden">
+    <div class="connect-icon">👋</div>
+    <div class="connect-title">Who's logging today?</div>
+    <div class="connect-sub">Pick your name once — the portal will remember on this device.</div>
+    <div style="max-width:320px;margin:14px auto 0">
+      <select id="whoami-select" style="width:100%;padding:14px;font-size:16px">
+        <option value="">— Pick your name —</option>
+      </select>
+      <button class="btn-connect" onclick="confirmWhoami()" style="width:100%;margin-top:14px">Continue</button>
+      <div id="whoami-error" style="color:var(--danger);margin-top:10px;font-size:12px;display:none"></div>
+    </div>
   </div>
 
   <!-- ── CONNECT STATE ── -->
@@ -415,23 +418,16 @@
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const PROXY_URL  = 'https://script.google.com/macros/s/AKfycbzfs7cyEmsmtfPnPi8kZcl0gUkXK8E3MQY2UAdKK0zsYell9IWWPejhnXA05DZrs5oHgQ/exec';
-// Audit H7 (May 2026): the previous shared-secret API_KEY was visible in
-// view-source — anyone with the URL could write rows. Replaced with a Google
-// sign-in flow that hands a verifiable ID token to the proxy. The proxy
-// validates the token via Google's tokeninfo endpoint and checks the email
-// against an allowlist managed in the Apps Script. Same Client ID as the
-// Financial App so no new Cloud Console wiring is needed beyond authorising
-// this page's origin.
-const G_CLIENT_ID = '304894248307-ohshubs8o36kksgqlbbr8q0doe1b695k.apps.googleusercontent.com';
+const API_KEY    = 'jema-portal-2026'; // shared soft-secret — see proxy comments
 // PERF: sessionStorage cache key + TTL (10 min) — avoids re-hitting proxy on page reload
 const CACHE_KEY  = 'jema_init_v1';
 const CACHE_TTL  = 10 * 60 * 1000;
+const WHO_KEY    = 'jema_portal_who'; // localStorage — name of the crew member on this device
 
 let allJobs = [], projectExpenses = [], projectPayroll = [];
 let selectedJob = null;
 let LISTS = {};
-let gIdToken = null; // set when the user signs in via Google Identity Services
-let gIdEmail = null; // for display + audit logs only — server still re-verifies
+let allMembers = []; // populated from getInit so the whoami picker has names to show
 const fmt   = n => '$' + Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 const today = () => new Date().toISOString().slice(0,10);
 // BUG FIX: XSS guard — escape all spreadsheet-sourced strings before innerHTML injection
@@ -442,93 +438,85 @@ document.getElementById('pay-date').value  = today();
 document.getElementById('proj-date').value = today();
 document.getElementById('gen-date').value  = today();
 
-// ── ID-TOKEN HELPER ──────────────────────────────────────────────────────────
-// Tiny client-side check: ID tokens are JWTs whose middle segment is a base64
-// JSON payload with `exp` (epoch seconds). If we're past `exp` we force a
-// re-sign before the request goes out, so the user gets a clear sign-in
-// prompt instead of an opaque proxy 401.
-function _decodeJwtPayload(jwt) {
-  try {
-    const seg = jwt.split('.')[1];
-    const padded = seg.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((seg.length + 3) % 4);
-    return JSON.parse(decodeURIComponent(escape(atob(padded))));
-  } catch (e) { return null; }
+// ── WHOAMI HELPERS (post-rollback May 2026) ──────────────────────────────────
+// Field-portal ergonomics: no login. The crew member picks their name once
+// per device, we store it in localStorage, and stamp it into Notes on every
+// write. The "switch" link in the header lets them swap if a different crew
+// member borrows the device.
+function getWho() {
+  try { return (localStorage.getItem(WHO_KEY) || '').trim(); }
+  catch (e) { return ''; }
 }
-function _idTokenStillValid() {
-  if (!gIdToken) return false;
-  const payload = _decodeJwtPayload(gIdToken);
-  if (!payload || !payload.exp) return false;
-  return (payload.exp * 1000) > Date.now() + 30000; // 30s safety margin
+function setWho(name) {
+  try { localStorage.setItem(WHO_KEY, name); } catch (e) {}
+  updateWhoChip();
+}
+function clearWho() {
+  try { localStorage.removeItem(WHO_KEY); } catch (e) {}
+  updateWhoChip();
+  showWhoami();
+}
+function updateWhoChip() {
+  const lbl = document.getElementById('sync-label');
+  if (!lbl) return;
+  const who = getWho();
+  if (who) lbl.innerHTML = 'Live · <strong>' + esc(who) + '</strong> · <a href="javascript:clearWho()" style="color:var(--text-muted);text-decoration:underline">switch</a>';
+  else     lbl.textContent = 'Setup needed';
+}
+function showWhoami() {
+  ['state-connect','state-select','state-budget','state-log','state-recent']
+    .forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('state-whoami').classList.remove('hidden');
+}
+function populateWhoamiSelect() {
+  const sel = document.getElementById('whoami-select');
+  if (!sel || !allMembers.length) return;
+  // Preserve placeholder + add options
+  while (sel.options.length > 1) sel.remove(1);
+  allMembers.forEach(name => {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  });
+}
+function confirmWhoami() {
+  const name = document.getElementById('whoami-select').value.trim();
+  const errEl = document.getElementById('whoami-error');
+  if (!name) {
+    errEl.textContent = 'Please pick your name from the list.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  setWho(name);
+  document.getElementById('state-whoami').classList.add('hidden');
+  // Initial load already happened in initPortal — just reveal the project selector now
+  document.getElementById('state-select').classList.remove('hidden');
+  document.getElementById('sync-dot').classList.add('connected');
 }
 
 // ── PROXY HELPERS ─────────────────────────────────────────────────────────────
-// HOT-FIX (May 8 2026, post-H7): Google Apps Script rejects URL params over
-// ~16 KB with `Argument too large: key`. ID tokens are ~1 KB JWTs — fine alone
-// but combined with action+extra they tripped the limit on long client names.
-// Both helpers now POST a JSON body with the id_token; the proxy routes reads
-// vs writes by inspecting the action name in doPost.
 async function proxyGet(action, extra) {
-  if (!_idTokenStillValid()) { showSignIn(); throw new Error('Sign-in required'); }
-  const r = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id_token: gIdToken, action, params: extra || {} })
-  });
+  const params = new URLSearchParams({ key: API_KEY, action, ...(extra||{}) });
+  const r = await fetch(PROXY_URL + '?' + params.toString());
   if (!r.ok) throw new Error('Request failed: ' + r.status);
   const data = await r.json();
   if (data.error) throw new Error(data.error);
   return data;
 }
 async function proxyPost(action, payload) {
-  if (!_idTokenStillValid()) { showSignIn(); throw new Error('Sign-in required'); }
+  // Always attach `who` from localStorage — proxy rejects writes without it.
+  const who = getWho();
+  if (!who) { showWhoami(); throw new Error('Pick your name first'); }
   const r = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id_token: gIdToken, action, data: payload })
+    body: JSON.stringify({ key: API_KEY, action, data: { ...payload, who } })
   });
   if (!r.ok) throw new Error('Request failed: ' + r.status);
   const data = await r.json();
   if (data.error) throw new Error(data.error);
   return data;
-}
-
-// ── SIGN-IN UI ───────────────────────────────────────────────────────────────
-function showSignIn(message) {
-  ['state-connect','state-select','state-budget','state-log','state-recent']
-    .forEach(id => document.getElementById(id).classList.add('hidden'));
-  document.getElementById('state-signin').classList.remove('hidden');
-  const errEl = document.getElementById('signin-error');
-  if (message) { errEl.textContent = message; errEl.style.display = 'block'; }
-  else { errEl.style.display = 'none'; }
-  document.getElementById('sync-label').textContent = 'Signed out';
-  document.getElementById('sync-dot').classList.remove('connected');
-}
-
-function _onCredentialResponse(resp) {
-  if (!resp || !resp.credential) { showSignIn('Sign-in failed — try again.'); return; }
-  gIdToken = resp.credential;
-  const payload = _decodeJwtPayload(gIdToken);
-  gIdEmail = payload && payload.email || null;
-  document.getElementById('state-signin').classList.add('hidden');
-  initPortal();
-}
-
-function _initGoogleSignIn() {
-  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
-    setTimeout(_initGoogleSignIn, 250);
-    return;
-  }
-  google.accounts.id.initialize({
-    client_id: G_CLIENT_ID,
-    callback: _onCredentialResponse,
-    auto_select: true
-  });
-  google.accounts.id.renderButton(
-    document.getElementById('g-signin-btn'),
-    { theme: 'filled_blue', size: 'large', text: 'signin_with', shape: 'pill' }
-  );
-  // One Tap prompt — silent if previously approved, falls back to button click.
-  google.accounts.id.prompt();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
@@ -539,7 +527,6 @@ async function initPortal() {
     showToast('⚠️ Proxy URL not configured — see setup instructions');
     return;
   }
-  if (!_idTokenStillValid()) { showSignIn(); return; }
   const connectCard = document.getElementById('state-connect');
   connectCard.classList.remove('hidden');
   try {
@@ -562,13 +549,18 @@ async function initPortal() {
 
     applyInitData(initData);
     connectCard.classList.add('hidden');
-    document.getElementById('sync-dot').classList.add('connected');
-    document.getElementById('sync-label').textContent = (initData._cached ? 'Live (cached)' : 'Live') + (gIdEmail ? ' · ' + gIdEmail : '');
-  } catch(e) {
-    if (/unauthor|not on allowlist|invalid id_token/i.test(e.message)) {
-      showSignIn('Your email isn\'t on the JEMA Studios allowlist. Ask Kwaku to add you.');
-      return;
+    // After init data is loaded, gate on whoami: if no name yet, show the
+    // picker; otherwise reveal the project selector and mark connected.
+    const who = getWho();
+    if (!who) {
+      populateWhoamiSelect();
+      showWhoami();
+    } else {
+      document.getElementById('state-select').classList.remove('hidden');
+      document.getElementById('sync-dot').classList.add('connected');
+      updateWhoChip();
     }
+  } catch(e) {
     connectCard.innerHTML = `
       <div class="connect-icon">⚠️</div>
       <div class="connect-title">Connection failed</div>
@@ -583,6 +575,7 @@ function applyInitData(data) {
   LISTS = data.lists || {};
   allJobs = data.jobs || [];
   const members = data.members || [];
+  allMembers = members; // exposed to whoami picker (post-rollback May 2026)
 
   // ── Team member dropdown
   const memberSel = document.getElementById('pay-member');
@@ -833,11 +826,12 @@ function showToast(msg) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-// Audit H7: show sign-in first; init only kicks off after a valid ID token
-// arrives via _onCredentialResponse. The Google Identity Services script may
-// still be loading, so _initGoogleSignIn polls until window.google is ready.
-showSignIn();
-_initGoogleSignIn();
+// Post-rollback (May 2026): no sign-in. Just load init data, then either show
+// the whoami picker (first time on this device) or jump straight to the
+// project selector. The header chip will show the picked name with a "switch"
+// link for the rare case where someone borrows another teammate's device.
+updateWhoChip();
+initPortal();
 </script>
 </body>
 </html>
